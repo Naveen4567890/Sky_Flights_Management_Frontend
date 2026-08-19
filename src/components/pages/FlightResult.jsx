@@ -1,0 +1,1045 @@
+import React, {  useMemo, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
+
+import {
+  selectOnwardFlight,
+  selectReturnFlight,
+  clearSelectedFlights,
+} from "../slice/FlightSlice";
+
+import FlightCard from "./FlightCard";
+
+
+const FlightResults = () => {
+
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+
+  const {
+    onwardFlights,
+    returnFlights,
+    selectedOnwardFlight,
+    selectedReturnFlight,
+    seatUpdates,
+  } = useSelector((state) => state.flight);
+
+  // ==========================================
+  // SORT STATE
+  // ==========================================
+
+  const [sortBy, setSortBy] = useState("default");
+
+  // ==========================================
+  // CONVERT DURATION TO MINUTES
+  // ==========================================
+
+  const getDurationInMinutes = (duration) => {
+    if (!duration) {
+      return 0;
+    }
+
+    // Example: "2h 30m"
+    const hoursMatch = duration.match(/(\d+)\s*h/i);
+    const minutesMatch = duration.match(/(\d+)\s*m/i);
+
+    if (hoursMatch || minutesMatch) {
+      const hours = hoursMatch
+        ? parseInt(hoursMatch[1], 10)
+        : 0;
+
+      const minutes = minutesMatch
+        ? parseInt(minutesMatch[1], 10)
+        : 0;
+
+      return hours * 60 + minutes;
+    }
+
+    // Example: "02:30"
+    if (duration.includes(":")) {
+      const [hours, minutes] = duration
+        .split(":")
+        .map(Number);
+
+      return hours * 60 + minutes;
+    }
+
+    // If backend returns number
+    const numericDuration = Number(duration);
+
+    return Number.isNaN(numericDuration)
+      ? 0
+      : numericDuration;
+  };
+
+  // ==========================================
+  // CONVERT DEPARTURE TIME TO MINUTES
+  // ==========================================
+
+  const getTimeInMinutes = (time) => {
+    if (!time) {
+      return 0;
+    }
+
+    // Handles:
+    // "10:30"
+    // "10:30:00"
+    // "2026-08-17T10:30:00"
+
+    const timePart = String(time).includes("T")
+      ? String(time).split("T")[1]
+      : String(time);
+
+    const [hours, minutes] = timePart
+      .split(":")
+      .map(Number);
+
+    return (
+      (hours || 0) * 60 +
+      (minutes || 0)
+    );
+  };
+
+  // ==========================================
+  // SORT FLIGHTS
+  // ==========================================
+
+  const sortFlights = (flights) => {
+    const sorted = [...flights];
+
+    switch (sortBy) {
+      // ========================================
+      // PRICE
+      // ========================================
+
+      case "priceLow":
+        return sorted.sort(
+          (a, b) =>
+            Number(a.price || 0) -
+            Number(b.price || 0)
+        );
+
+      case "priceHigh":
+        return sorted.sort(
+          (a, b) =>
+            Number(b.price || 0) -
+            Number(a.price || 0)
+        );
+
+      // ========================================
+      // DURATION
+      // ========================================
+
+      case "durationShort":
+        return sorted.sort(
+          (a, b) =>
+            getDurationInMinutes(a.duration) -
+            getDurationInMinutes(b.duration)
+        );
+
+      case "durationLong":
+        return sorted.sort(
+          (a, b) =>
+            getDurationInMinutes(b.duration) -
+            getDurationInMinutes(a.duration)
+        );
+
+      // ========================================
+      // DEPARTURE TIME
+      // ========================================
+
+      case "departureEarly":
+        return sorted.sort(
+          (a, b) =>
+            getTimeInMinutes(a.departureTime) -
+            getTimeInMinutes(b.departureTime)
+        );
+
+      case "departureLate":
+        return sorted.sort(
+          (a, b) =>
+            getTimeInMinutes(b.departureTime) -
+            getTimeInMinutes(a.departureTime)
+        );
+
+      // ========================================
+      // AIRLINE
+      // ========================================
+
+      case "airlineAZ":
+        return sorted.sort((a, b) =>
+          String(a.airline || "").localeCompare(
+            String(b.airline || "")
+          )
+        );
+
+      case "airlineZA":
+        return sorted.sort((a, b) =>
+          String(b.airline || "").localeCompare(
+            String(a.airline || "")
+          )
+        );
+
+      // ========================================
+      // DEFAULT
+      // ========================================
+
+      default:
+        return sorted;
+    }
+  };
+
+  // ==========================================
+  // SORTED DEPARTURE FLIGHTS
+  // ==========================================
+
+  const sortedOnwardFlights = useMemo(() => {
+    return sortFlights(onwardFlights);
+  }, [onwardFlights, sortBy]);
+
+  // ==========================================
+  // SORTED RETURN FLIGHTS
+  // ==========================================
+
+  const sortedReturnFlights = useMemo(() => {
+    return sortFlights(returnFlights);
+  }, [returnFlights, sortBy]);
+
+  // ==========================================
+  // SELECT DEPARTURE
+  // ==========================================
+
+  const handleOnwardSelect = (flight) => {
+    dispatch(selectOnwardFlight(flight));
+  };
+
+  // ==========================================
+  // SELECT RETURN
+  // ==========================================
+
+  const handleReturnSelect = (flight) => {
+    dispatch(selectReturnFlight(flight));
+  };
+
+  // ==========================================
+  // SEARCH AGAIN
+  // ==========================================
+
+  const handleSearchFlights = () => {
+    dispatch(clearSelectedFlights());
+
+    navigate("/");
+  };
+
+  // ==========================================
+  // CONTINUE
+  // ==========================================
+
+  const handleContinue = () => {
+    if (!selectedOnwardFlight) {
+      toast.error("Please select departure flight");
+      return;
+    }
+
+    if (
+      returnFlights.length > 0 &&
+      !selectedReturnFlight
+    ) {
+      toast.error("Please select return flight");
+      return;
+    }
+
+    navigate("/passengers");
+  };
+
+  // ==========================================
+  // NO FLIGHTS
+  // ==========================================
+
+  const noFlightsAvailable =
+    onwardFlights.length === 0 &&
+    returnFlights.length === 0;
+
+  return (
+    <div
+      className="
+        min-h-screen
+        bg-linear-to-br
+        from-slate-50
+        via-blue-50
+        to-indigo-50
+        relative
+        overflow-hidden
+      "
+    >
+      {/* ========================================== */}
+      {/* BACKGROUND DECORATIONS */}
+      {/* ========================================== */}
+
+      <div
+        className="
+          absolute
+          -top-32
+          -right-32
+          w-96
+          h-96
+          bg-blue-200/30
+          rounded-full
+          blur-3xl
+          pointer-events-none
+        "
+      />
+
+      <div
+        className="
+          absolute
+          top-[40%]
+          -left-40
+          w-96
+          h-96
+          bg-indigo-200/20
+          rounded-full
+          blur-3xl
+          pointer-events-none
+        "
+      />
+
+      <div
+        className="
+          absolute
+          bottom-0
+          right-[20%]
+          w-72
+          h-72
+          bg-sky-200/20
+          rounded-full
+          blur-3xl
+          pointer-events-none
+        "
+      />
+
+      {/* ================= HEADER ================= */}
+
+      <header
+        className="
+          relative
+          z-10
+          bg-white/90
+          backdrop-blur-xl
+          border-b
+          border-white/60
+          shadow-sm
+        "
+      >
+        <div
+          className="
+            max-w-7xl
+            mx-auto
+            px-4
+            sm:px-6
+            lg:px-8
+            py-5
+          "
+        >
+          <div
+            className="
+              flex
+              flex-col
+              sm:flex-row
+              sm:items-center
+              sm:justify-between
+              gap-4
+            "
+          >
+            <div>
+              <h1
+                className="
+                  text-2xl
+                  sm:text-3xl
+                  font-bold
+                  text-gray-800
+                "
+              >
+                Available Flights
+              </h1>
+
+              <p className="text-sm text-gray-500 mt-1">
+                Choose the best flight for your journey
+              </p>
+            </div>
+
+            {/* Flight Counts */}
+
+            <div className="flex flex-wrap gap-2">
+              <span
+                className="
+                  px-3
+                  py-2
+                  rounded-lg
+                  bg-blue-50
+                  text-blue-600
+                  text-sm
+                  font-medium
+                "
+              >
+                {onwardFlights.length} Departure
+              </span>
+
+              {returnFlights.length > 0 && (
+                <span
+                  className="
+                    px-3
+                    py-2
+                    rounded-lg
+                    bg-green-50
+                    text-green-600
+                    text-sm
+                    font-medium
+                  "
+                >
+                  {returnFlights.length} Return
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* ================= MAIN ================= */}
+
+      <main
+        className="
+          relative
+          z-10
+          max-w-7xl
+          mx-auto
+          px-4
+          sm:px-6
+          lg:px-8
+          py-6
+          sm:py-8
+        "
+      >
+        {/* ==================================================
+            NO FLIGHTS AVAILABLE
+        ================================================== */}
+
+        {noFlightsAvailable ? (
+          <section
+            className="
+              min-h-125
+              flex
+              items-center
+              justify-center
+            "
+          >
+            <div
+              className="
+                w-full
+                max-w-lg
+                bg-white
+                rounded-2xl
+                border
+                border-gray-200
+                shadow-sm
+                p-8
+                sm:p-12
+                text-center
+              "
+            >
+              <div
+                className="
+                  w-20
+                  h-20
+                  mx-auto
+                  rounded-full
+                  bg-blue-50
+                  flex
+                  items-center
+                  justify-center
+                  mb-6
+                "
+              >
+                <span className="text-4xl">
+                  ✈️
+                </span>
+              </div>
+
+              <h2
+                className="
+                  text-2xl
+                  font-bold
+                  text-gray-800
+                "
+              >
+                No Flights Available
+              </h2>
+
+              <p
+                className="
+                  text-gray-500
+                  mt-3
+                  leading-relaxed
+                "
+              >
+                We couldn't find any flights for
+                your selected route and date.
+                Try changing your search criteria.
+              </p>
+
+              <button
+                type="button"
+                onClick={handleSearchFlights}
+                className="
+                  mt-7
+                  w-full
+                  h-12
+                  bg-blue-600
+                  hover:bg-blue-700
+                  active:bg-blue-800
+                  text-white
+                  font-semibold
+                  rounded-xl
+                  transition-all
+                  duration-200
+                  shadow-md
+                  hover:shadow-lg
+                "
+              >
+                🔍 Search Flights
+              </button>
+            </div>
+          </section>
+        ) : (
+          <>
+            {/* ==================================================
+                SORT BAR
+            ================================================== */}
+
+            <section
+              className="
+                bg-white/90
+                backdrop-blur-xl
+                rounded-2xl
+                border
+                border-white
+                shadow-sm
+                p-4
+                sm:p-5
+                mb-8
+              "
+            >
+              <div
+                className="
+                  flex
+                  flex-col
+                  sm:flex-row
+                  sm:items-center
+                  sm:justify-between
+                  gap-4
+                "
+              >
+                <div>
+                  <h3
+                    className="
+                      text-base
+                      sm:text-lg
+                      font-bold
+                      text-gray-800
+                    "
+                  >
+                    Sort Flights
+                  </h3>
+
+                  <p
+                    className="
+                      text-xs
+                      sm:text-sm
+                      text-gray-500
+                      mt-1
+                    "
+                  >
+                    Find the flight that suits you best
+                  </p>
+                </div>
+
+                {/* SORT SELECT */}
+
+                <div
+                  className="
+                    w-full
+                    sm:w-auto
+                    min-w-0
+                    sm:min-w-65
+                  "
+                >
+                  <label
+                    htmlFor="sortFlights"
+                    className="
+                      block
+                      text-xs
+                      font-medium
+                      text-gray-500
+                      mb-1.5
+                    "
+                  >
+                    Sort by
+                  </label>
+
+                  <select
+                    id="sortFlights"
+                    value={sortBy}
+                    onChange={(e) =>
+                      setSortBy(e.target.value)
+                    }
+                    className="
+                      w-full
+                      h-11
+                      px-3
+                      sm:px-4
+                      rounded-xl
+                      border
+                      border-gray-300
+                      bg-white
+                      text-sm
+                      font-medium
+                      text-gray-700
+                      outline-none
+                      cursor-pointer
+                      transition
+                      focus:border-blue-500
+                      focus:ring-2
+                      focus:ring-blue-100
+                    "
+                  >
+                    <option value="default">
+                      Recommended
+                    </option>
+
+                    <optgroup label="Price">
+                      <option value="priceLow">
+                        Price: Low → High
+                      </option>
+
+                      <option value="priceHigh">
+                        Price: High → Low
+                      </option>
+                    </optgroup>
+
+                    <optgroup label="Duration">
+                      <option value="durationShort">
+                        Duration: Shortest → Longest
+                      </option>
+
+                      <option value="durationLong">
+                        Duration: Longest → Shortest
+                      </option>
+                    </optgroup>
+
+                    <optgroup label="Departure">
+                      <option value="departureEarly">
+                        Departure: Earliest → Latest
+                      </option>
+
+                      <option value="departureLate">
+                        Departure: Latest → Earliest
+                      </option>
+                    </optgroup>
+
+                    <optgroup label="Airline">
+                      <option value="airlineAZ">
+                        Airline: A → Z
+                      </option>
+
+                      <option value="airlineZA">
+                        Airline: Z → A
+                      </option>
+                    </optgroup>
+                  </select>
+                </div>
+              </div>
+            </section>
+
+            {/* ==================================================
+                DEPARTURE
+            ================================================== */}
+
+            {sortedOnwardFlights.length > 0 && (
+              <section className="mb-10">
+                <div
+                  className="
+                    flex
+                    items-center
+                    gap-3
+                    mb-5
+                  "
+                >
+                  <div
+                    className="
+                      w-10
+                      h-10
+                      shrink-0
+                      rounded-full
+                      bg-blue-100
+                      flex
+                      items-center
+                      justify-center
+                    "
+                  >
+                    <span className="text-lg">
+                      ✈️
+                    </span>
+                  </div>
+
+                  <div>
+                    <h2
+                      className="
+                        text-xl
+                        sm:text-2xl
+                        font-bold
+                        text-gray-800
+                      "
+                    >
+                      Departure Flights
+                    </h2>
+
+                    <p className="text-sm text-gray-500">
+                      Select your departure flight
+                    </p>
+                  </div>
+                </div>
+
+                <div
+                  className="
+                    grid
+                    grid-cols-1
+                    xl:grid-cols-2
+                    gap-5
+                  "
+                >
+                  {sortedOnwardFlights.map(
+                    (flight, index) => (
+                      <FlightCard
+                        key={flight.id || index}
+                        flight={flight}
+                        selected={
+                          selectedOnwardFlight?.id === flight.id
+                        }
+                        onSelect={handleOnwardSelect}
+                        seatUpdates={seatUpdates[flight.id] || {}}
+                      />
+                    )
+                  )}
+                </div>
+              </section>
+            )}
+
+            {/* ==================================================
+                RETURN
+            ================================================== */}
+
+            {sortedReturnFlights.length > 0 && (
+              <section className="mb-10">
+                <div
+                  className="
+                    flex
+                    items-center
+                    gap-3
+                    mb-5
+                  "
+                >
+                  <div
+                    className="
+                      w-10
+                      h-10
+                      shrink-0
+                      rounded-full
+                      bg-green-100
+                      flex
+                      items-center
+                      justify-center
+                    "
+                  >
+                    <span className="text-lg">
+                      ↩️
+                    </span>
+                  </div>
+
+                  <div>
+                    <h2
+                      className="
+                        text-xl
+                        sm:text-2xl
+                        font-bold
+                        text-gray-800
+                      "
+                    >
+                      Return Flights
+                    </h2>
+
+                    <p className="text-sm text-gray-500">
+                      Select your return flight
+                    </p>
+                  </div>
+                </div>
+
+                <div
+                  className="
+                    grid
+                    grid-cols-1
+                    xl:grid-cols-2
+                    gap-5
+                  "
+                >
+                  {sortedReturnFlights.map(
+                    (flight, index) => (
+                      <FlightCard
+                          key={flight.id || index}
+                          flight={flight}
+                          selected={
+                            selectedReturnFlight?.id === flight.id
+                          }
+                          onSelect={handleReturnSelect}
+                          seatUpdates={seatUpdates[flight.id] || {}}
+                      />
+                    )
+                  )}
+                </div>
+              </section>
+            )}
+
+            {/* ==================================================
+                SELECTED SUMMARY
+            ================================================== */}
+
+            {(selectedOnwardFlight ||
+              selectedReturnFlight) && (
+              <section
+                className="
+                  bg-white
+                  rounded-2xl
+                  border
+                  border-gray-200
+                  shadow-sm
+                  p-5
+                  mb-6
+                "
+              >
+                <h3
+                  className="
+                    text-lg
+                    font-bold
+                    text-gray-800
+                    mb-4
+                  "
+                >
+                  Your Selection
+                </h3>
+
+                <div
+                  className="
+                    grid
+                    grid-cols-1
+                    md:grid-cols-2
+                    gap-4
+                  "
+                >
+                  {/* DEPARTURE */}
+
+                  <div
+                    className="
+                      rounded-xl
+                      bg-blue-50
+                      border
+                      border-blue-100
+                      p-4
+                    "
+                  >
+                    <p
+                      className="
+                        text-xs
+                        font-medium
+                        uppercase
+                        tracking-wide
+                        text-blue-500
+                      "
+                    >
+                      Departure Flight
+                    </p>
+
+                    {selectedOnwardFlight ? (
+                      <>
+                        <p
+                          className="
+                            font-semibold
+                            text-gray-800
+                            mt-1
+                          "
+                        >
+                          {selectedOnwardFlight.source}
+                          {" → "}
+                          {selectedOnwardFlight.destination}
+                        </p>
+
+                        <p
+                          className="
+                            text-sm
+                            text-gray-500
+                            mt-1
+                          "
+                        >
+                          {selectedOnwardFlight.airline}
+                          {" • "}
+                          {selectedOnwardFlight.flightNumber}
+                        </p>
+                      </>
+                    ) : (
+                      <p
+                        className="
+                          text-sm
+                          text-gray-500
+                          mt-1
+                        "
+                      >
+                        Not selected
+                      </p>
+                    )}
+                  </div>
+
+                  {/* RETURN */}
+
+                  {returnFlights.length > 0 && (
+                    <div
+                      className="
+                        rounded-xl
+                        bg-green-50
+                        border
+                        border-green-100
+                        p-4
+                      "
+                    >
+                      <p
+                        className="
+                          text-xs
+                          font-medium
+                          uppercase
+                          tracking-wide
+                          text-green-500
+                        "
+                      >
+                        Return Flight
+                      </p>
+
+                      {selectedReturnFlight ? (
+                        <>
+                          <p
+                            className="
+                              font-semibold
+                              text-gray-800
+                              mt-1
+                            "
+                          >
+                            {selectedReturnFlight.source}
+                            {" → "}
+                            {selectedReturnFlight.destination}
+                          </p>
+
+                          <p
+                            className="
+                              text-sm
+                              text-gray-500
+                              mt-1
+                            "
+                          >
+                            {selectedReturnFlight.airline}
+                            {" • "}
+                            {selectedReturnFlight.flightNumber}
+                          </p>
+                        </>
+                      ) : (
+                        <p
+                          className="
+                            text-sm
+                            text-gray-500
+                            mt-1
+                          "
+                        >
+                          Not selected
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </section>
+            )}
+
+            {/* ==================================================
+                CONTINUE
+            ================================================== */}
+
+            <section
+              className="
+                bg-white
+                rounded-2xl
+                border
+                border-gray-200
+                shadow-sm
+                p-5
+              "
+            >
+              <div
+                className="
+                  flex
+                  flex-col
+                  sm:flex-row
+                  sm:items-center
+                  sm:justify-between
+                  gap-4
+                "
+              >
+                <div>
+                  <h3 className="font-semibold text-gray-800">
+                    Ready to continue?
+                  </h3>
+
+                  <p className="text-sm text-gray-500 mt-1">
+                    Select your flights and continue to
+                    passenger details.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleContinue}
+                  className="
+                    w-full
+                    sm:w-auto
+                    min-w-45
+                    h-11
+                    sm:h-12
+                    px-6
+                    bg-blue-600
+                    hover:bg-blue-700
+                    active:bg-blue-800
+                    text-white
+                    font-semibold
+                    rounded-xl
+                    transition-all
+                    duration-200
+                    shadow-md
+                    hover:shadow-lg
+                  "
+                >
+                  Continue →
+                </button>
+              </div>
+            </section>
+          </>
+        )}
+      </main>
+    </div>
+  );
+};
+
+export default FlightResults;

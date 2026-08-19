@@ -1,0 +1,278 @@
+import React, { useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { setPassengers } from "../slice/BookingSlice";
+
+import { useNavigate } from "react-router-dom";
+import PassengerForm from "./PassengerForm";
+
+const PassengerDetails = () => {
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+
+  const {
+    searchParams,
+    selectedOnwardFlight,
+    selectedReturnFlight,
+  } = useSelector((state) => state.flight);
+
+  const { passengers: storedPassengers } = useSelector(
+    (state) => state.booking
+  );
+
+  const passengerCount = Number(
+    searchParams?.passengers || 1
+  );
+
+  const [passengers, setPassengersState] = useState(
+    storedPassengers?.length
+      ? storedPassengers
+      : Array.from(
+          { length: passengerCount },
+          () => ({
+            firstName: "",
+            lastName: "",
+            email: "",
+            phone: "",
+            dateOfBirth: "",
+          })
+        )
+  );
+
+  const handleChange = (index, passenger) => {
+    const updated = [...passengers];
+
+    updated[index] = passenger;
+
+    setPassengersState(updated);
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+
+    dispatch(setPassengers(passengers));
+
+    navigate("/booking-review");
+  };
+
+  // No flight selected
+  if (!selectedOnwardFlight) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+
+        <div className="w-full max-w-md bg-white rounded-2xl shadow-lg border border-gray-200 p-6 sm:p-8 text-center">
+
+          <div className="w-16 h-16 mx-auto mb-5 rounded-full bg-red-100 flex items-center justify-center">
+            <span className="text-3xl">✈️</span>
+          </div>
+
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-800">
+            No Flight Selected
+          </h2>
+
+          <p className="text-sm sm:text-base text-gray-500 mt-2">
+            Please select a flight before entering passenger details.
+          </p>
+
+          <button
+            type="button"
+            onClick={() => navigate("/flights")}
+            className="
+              mt-6
+              w-full
+              h-11
+              bg-blue-600
+              hover:bg-blue-700
+              text-white
+              font-semibold
+              rounded-lg
+              transition
+            "
+          >
+            Go Back to Flights
+          </button>
+
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+
+      {/* Header */}
+      <header className="bg-white border-b border-gray-200 shadow-sm">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
+
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">
+                Passenger Details
+              </h1>
+
+              <p className="text-sm sm:text-base text-gray-500 mt-1">
+                Enter the details of all passengers travelling
+              </p>
+            </div>
+
+            {/* Passenger Count */}
+            <div className="flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-lg">
+              <span className="text-lg">
+                👤
+              </span>
+
+              <span className="text-sm font-semibold text-blue-600">
+                {passengers.length} Passenger
+                {passengers.length !== 1 ? "s" : ""}
+              </span>
+            </div>
+
+          </div>
+
+        </div>
+      </header>
+
+      {/* Main */}
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+
+        {/* Selected Flight Summary */}
+        <section className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 sm:p-5 mb-6">
+
+          <h2 className="text-lg font-bold text-gray-800 mb-4">
+            Selected Flight
+          </h2>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+            {/* Departure */}
+            <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
+
+              <p className="text-xs uppercase tracking-wide text-blue-500 font-medium">
+                Departure
+              </p>
+
+              <p className="text-base sm:text-lg font-bold text-gray-800 mt-1">
+                {selectedOnwardFlight.source}
+                {" → "}
+                {selectedOnwardFlight.destination}
+              </p>
+
+              <p className="text-sm text-gray-500 mt-1">
+                {selectedOnwardFlight.airline}
+                {" • "}
+                {selectedOnwardFlight.flightNumber}
+              </p>
+
+              <p className="text-sm text-gray-500 mt-1">
+                {selectedOnwardFlight.departureTime}
+                {" - "}
+                {selectedOnwardFlight.arrivalTime}
+              </p>
+
+            </div>
+
+            {/* Return */}
+            {selectedReturnFlight && (
+              <div className="bg-green-50 border border-green-100 rounded-xl p-4">
+
+                <p className="text-xs uppercase tracking-wide text-green-500 font-medium">
+                  Return
+                </p>
+
+                <p className="text-base sm:text-lg font-bold text-gray-800 mt-1">
+                  {selectedReturnFlight.source}
+                  {" → "}
+                  {selectedReturnFlight.destination}
+                </p>
+
+                <p className="text-sm text-gray-500 mt-1">
+                  {selectedReturnFlight.airline}
+                  {" • "}
+                  {selectedReturnFlight.flightNumber}
+                </p>
+
+                <p className="text-sm text-gray-500 mt-1">
+                  {selectedReturnFlight.departureTime}
+                  {" - "}
+                  {selectedReturnFlight.arrivalTime}
+                </p>
+
+              </div>
+            )}
+
+          </div>
+        </section>
+
+        {/* Passenger Form */}
+        <form onSubmit={handleSubmit}>
+
+          <div className="space-y-5">
+
+            {passengers.map((passenger, index) => (
+              <PassengerForm
+                key={index}
+                passenger={passenger}
+                index={index}
+                onChange={handleChange}
+              />
+            ))}
+
+          </div>
+
+          {/* Bottom Actions */}
+          <div className="mt-6 bg-white rounded-2xl border border-gray-200 shadow-sm p-4 sm:p-5">
+
+            <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-3">
+
+              <button
+                type="button"
+                onClick={() => navigate("/flights")}
+                className="
+                  w-full
+                  sm:w-auto
+                  px-6
+                  h-11
+                  rounded-lg
+                  border
+                  border-gray-300
+                  text-gray-700
+                  font-medium
+                  hover:bg-gray-50
+                  transition
+                "
+              >
+                ← Back to Flights
+              </button>
+
+              <button
+                type="submit"
+                className="
+                  w-full
+                  sm:w-auto
+                  px-8
+                  h-11
+                  rounded-lg
+                  bg-blue-600
+                  hover:bg-blue-700
+                  active:bg-blue-800
+                  text-white
+                  font-semibold
+                  shadow-md
+                  transition
+                "
+              >
+                Continue to Review →
+              </button>
+
+            </div>
+
+          </div>
+
+        </form>
+
+      </main>
+    </div>
+  );
+};
+
+export default PassengerDetails;
