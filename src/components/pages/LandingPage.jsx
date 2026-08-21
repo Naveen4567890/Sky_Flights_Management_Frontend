@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
@@ -9,152 +8,169 @@ import {
   FiCheckCircle,
   FiShield,
   FiClock,
+  FiChevronDown,
 } from "react-icons/fi";
 import { FaPlaneDeparture, FaPlaneArrival } from "react-icons/fa";
 
-import { FiChevronDown } from "react-icons/fi";
 import { Airports } from "../data/Airport";
 import toast from "react-hot-toast";
 import { useDispatch } from "react-redux";
-import { flightSearch } from "../slice/FlightSlice";
+import { flightSearch } from "../slice/flightSlice";
 
 const LandingPage = () => {
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
 
-  const dispatch=useDispatch();
-  const navigate=useNavigate();
+  const MAX_TRAVELERS = 9;
 
-    const [travelerOpen, setTravelerOpen] = useState(false);
-    const [cabinOpen, setCabinOpen] = useState(false);
+  const [travelerError, setTravelerError] = useState("");
 
-    const [traveller, setTraveller] = useState({
+  const [travelerOpen, setTravelerOpen] = useState(false);
+  const [cabinOpen, setCabinOpen] = useState(false);
+
+  const [traveller, setTraveller] = useState({
     ADULT: 1,
     CHILD: 0,
     INFANT: 0,
-    });
+  });
 
-    const [cabin, setCabin] = useState("Economy");
+  const [cabin, setCabin] = useState("Economy");
 
-    const updateTraveler = (type, value) => {
+  const updateTraveler = (type, value) => {
     setTraveller((prev) => ({
-        ...prev,
-        [type]: Math.max(0, prev[type] + value),
+      ...prev,
+      [type]: Math.max(0, prev[type] + value),
     }));
-    };
+  };
 
-    const totalTravelers =
+  const totalTravelers =
     traveller.ADULT + traveller.CHILD + traveller.INFANT;
 
-    const today = new Date().toISOString().split("T")[0];
+  const today = new Date().toISOString().split("T")[0];
 
-    const [tripType, setTripType] = useState("ROUND_TRIP");
+  const [tripType, setTripType] = useState("ROUND_TRIP");
 
-    const [departureDate, setDepartureDate] = useState("");
-    const [returnDate, setReturnDate] = useState("");
+  const [departureDate, setDepartureDate] = useState("");
+  const [returnDate, setReturnDate] = useState("");
 
-    const [sources, setSources] = useState(null);
-    const [destinations, setDestinations] = useState(null);
+  const [sources, setSources] = useState(null);
+  const [destinations, setDestinations] = useState(null);
 
-    const [fromSearch, setFromSearch] = useState("");
-    const [toSearch, setToSearch] = useState("");
+  const [fromSearch, setFromSearch] = useState("");
+  const [toSearch, setToSearch] = useState("");
 
-    const [showFromDropdown, setShowFromDropdown] = useState(false);
-    const [showToDropdown, setShowToDropdown] = useState(false);
+  const [showFromDropdown, setShowFromDropdown] = useState(false);
+  const [showToDropdown, setShowToDropdown] = useState(false);
 
-    const filteredFromAirports = Airports.list.filter((airport) =>
+  // ==========================================
+  // FILTER AIRPORTS
+  // ==========================================
+
+  const filteredFromAirports = Airports.list.filter((airport) =>
     `${airport.city} ${airport.country} ${airport.code} ${airport.name}`
-        .toLowerCase()
-        .includes(fromSearch.toLowerCase())
-    );
+      .toLowerCase()
+      .includes(fromSearch.toLowerCase())
+  );
 
-    const filteredToAirports = Airports.list.filter((airport) =>
+  const filteredToAirports = Airports.list.filter((airport) =>
     `${airport.city} ${airport.country} ${airport.code} ${airport.name}`
-        .toLowerCase()
-        .includes(toSearch.toLowerCase())
-    );
+      .toLowerCase()
+      .includes(toSearch.toLowerCase())
+  );
 
-    const handleSwapAirports = () => {
+  // ==========================================
+  // SWAP AIRPORTS
+  // ==========================================
 
-      if (!sources && !destinations) {
-        toast.error("Please select source and destination first");
-        return;
-      }
+  const handleSwapAirports = () => {
+    if (!sources && !destinations) {
+      toast.error("Please select source and destination first");
+      return;
+    }
 
-      setSources(destinations);
-      setDestinations(sources);
+    setSources(destinations);
+    setDestinations(sources);
 
-      setFromSearch("");
-      setToSearch("");
+    setFromSearch("");
+    setToSearch("");
 
-      setShowFromDropdown(false);
-      setShowToDropdown(false);
+    setShowFromDropdown(false);
+    setShowToDropdown(false);
+  };
+
+  // ==========================================
+  // SEARCH FLIGHTS
+  // ==========================================
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!sources) {
+      toast.error("Please select a source airport");
+      return;
+    }
+
+    if (!destinations) {
+      toast.error("Please select a destination airport");
+      return;
+    }
+
+    if (!departureDate) {
+      toast.error("Please select departure date");
+      return;
+    }
+
+    if (tripType === "ROUND_TRIP" && !returnDate) {
+      toast.error("Please select return date");
+      return;
+    }
+
+    const source = sources.code;
+    const destination = destinations.code;
+
+    if (source === destination) {
+      toast.error("Source and destination should be different");
+      return;
+    }
+
+    const payload = {
+      tripType,
+      source,
+      destination,
+      departureDate,
+      returnDate: tripType === "ONE_WAY" ? null : returnDate,
+      cabin,
+      travelers: traveller,
+      totalTravelers,
     };
 
-      const handleSubmit = async (e) => { 
-      e.preventDefault();
+    try {
+      await dispatch(flightSearch(payload)).unwrap();
 
-      if (!sources) {
-        toast.error("Please select a source airport");
-        return;
-      }
-
-      if (!destinations) {
-        toast.error("Please select a destination airport");
-        return;
-      }
-
-      if (!departureDate) {
-        toast.error("Please select departure date");
-        return;
-      }
-
-      if (tripType === "ROUND_TRIP" && !returnDate) {
-        toast.error("Please select return date");
-        return;
-      }
-
-      const source = sources.code;
-      const destination = destinations.code;
-
-      if (source === destination) {
-        toast.error("Source and destination should be different");
-        return;
-      }
-
-      const payload = {
-        tripType,
-        source,
-        destination,
-        departureDate,
-        returnDate: tripType === "ONE_WAY" ? null : returnDate,
-        cabin,
-        travelers: traveller,
-        totalTravelers
-      };
-
-      try {
-        const result = await dispatch(
-          flightSearch(payload)
-        ).unwrap();
-
-        navigate("/flights")
-
-      } catch (error) {
-        console.error("Flight Search Error:", error);
-        toast.error("Unable to search flights");
-      }
-    };
-
+      navigate("/flights");
+    } catch (error) {
+      console.error("Flight Search Error:", error);
+      toast.error("Unable to search flights");
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900">
 
-      {/* ================= NAVBAR ================= */}
+      {/* ========================================================= */}
+      {/* NAVBAR */}
+      {/* ========================================================= */}
+
       <nav className="absolute top-0 left-0 right-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
           <div className="h-20 flex items-center justify-between">
 
             {/* Logo */}
-            <Link to="/" className="flex items-center gap-2">
+            <Link
+              to="/"
+              className="flex items-center gap-2 cursor-pointer"
+            >
               <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center">
                 <FaPlaneDeparture className="text-white text-xl" />
               </div>
@@ -166,48 +182,64 @@ const LandingPage = () => {
 
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center gap-8 text-white">
-              <a href="#home" className="hover:text-blue-200 transition">
+
+              <a
+                href="#home"
+                className="hover:text-blue-200 transition cursor-pointer"
+              >
                 Home
               </a>
 
               <a
                 href="#destinations"
-                className="hover:text-blue-200 transition"
+                className="hover:text-blue-200 transition cursor-pointer"
               >
                 Destinations
               </a>
 
-              <a href="#offers" className="hover:text-blue-200 transition">
+              <a
+                href="#offers"
+                className="hover:text-blue-200 transition cursor-pointer"
+              >
                 Offers
               </a>
 
-              <a href="#about" className="hover:text-blue-200 transition">
+              <a
+                href="#about"
+                className="hover:text-blue-200 transition cursor-pointer"
+              >
                 About
               </a>
+
             </div>
 
             {/* Auth Buttons */}
             <div className="flex items-center gap-2 sm:gap-3">
+
               <Link
                 to="/login"
-                className="px-3 sm:px-5 py-2 text-sm sm:text-base text-white font-medium border border-white/40 hover:bg-white/10 rounded-lg transition"
+                className="px-3 sm:px-5 py-2 text-sm sm:text-base text-white font-medium border border-white/40 hover:bg-white/10 rounded-lg transition cursor-pointer"
               >
                 Login
               </Link>
 
               <Link
                 to="/register"
-                className="px-3 sm:px-5 py-2 text-sm sm:text-base bg-white text-blue-600 font-semibold rounded-lg hover:bg-blue-50 transition"
+                className="px-3 sm:px-5 py-2 text-sm sm:text-base bg-white text-blue-600 font-semibold rounded-lg hover:bg-blue-50 transition cursor-pointer"
               >
                 Sign Up
               </Link>
+
             </div>
 
           </div>
         </div>
       </nav>
 
-      {/* ================= HERO ================= */}
+      {/* ========================================================= */}
+      {/* HERO */}
+      {/* ========================================================= */}
+
       <section
         id="home"
         className="
@@ -223,8 +255,8 @@ const LandingPage = () => {
           bg-no-repeat
         "
         style={{
-          backgroundImage: "url('https://images.financialexpressdigital.com/2026/08/Air-India-long-haul-flights.jpg?w=1200')",
-        
+          backgroundImage:
+            "url('https://images.financialexpressdigital.com/2026/08/Air-India-long-haul-flights.jpg?w=1200')",
         }}
       >
 
@@ -241,99 +273,118 @@ const LandingPage = () => {
           <div className="text-center text-white max-w-3xl mx-auto">
 
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/30 text-sm mb-6">
+
               <FaPlaneDeparture />
-              <span>Travel smarter. Fly farther.</span>
+
+              <span>
+                Travel smarter. Fly farther.
+              </span>
+
             </div>
 
             <h1 className="text-4xl sm:text-5xl lg:text-7xl font-bold leading-tight drop-shadow-lg">
+
               Your Journey
+
               <span className="block text-blue-200">
                 Starts Here
               </span>
+
             </h1>
 
             <p className="mt-5 text-base sm:text-lg lg:text-xl text-white/90 max-w-2xl mx-auto">
+
               Discover amazing destinations, compare flight prices,
               and book your next adventure with ease.
+
             </p>
 
           </div>
 
-          {/* ================= SEARCH CARD ================= */}
-           <div className="mt-10 w-full max-w-350 mx-auto px-2 sm:px-4">
+          {/* ===================================================== */}
+          {/* SEARCH CARD */}
+          {/* ===================================================== */}
+
+          <div className="mt-10 w-full max-w-350 mx-auto px-2 sm:px-4">
 
             <div className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl p-4 sm:p-6">
 
-                {/* Trip Type */}
-                <div className="flex flex-wrap gap-5 mb-6">
+              {/* ================================================= */}
+              {/* TRIP TYPE */}
+              {/* ================================================= */}
 
+              <div className="flex flex-wrap gap-5 mb-6">
+
+                {/* Round Trip */}
                 <label className="flex items-center gap-2 cursor-pointer">
-                    <input
+
+                  <input
                     type="radio"
                     name="trip"
                     value="ROUND_TRIP"
                     checked={tripType === "ROUND_TRIP"}
                     onChange={(e) => setTripType(e.target.value)}
-                    className="accent-blue-600"
-                    />
+                    className="accent-blue-600 cursor-pointer"
+                  />
 
-                    <span className="text-sm font-medium">
+                  <span className="text-sm font-medium">
                     Round Trip
-                    </span>
+                  </span>
+
                 </label>
 
-
+                {/* One Way */}
                 <label className="flex items-center gap-2 cursor-pointer">
-                    <input
+
+                  <input
                     type="radio"
                     name="trip"
                     value="ONE_WAY"
                     checked={tripType === "ONE_WAY"}
                     onChange={(e) => {
-                        setTripType(e.target.value);
-                        setReturnDate("");
+                      setTripType(e.target.value);
+                      setReturnDate("");
                     }}
-                    className="accent-blue-600"
-                    />
+                    className="accent-blue-600 cursor-pointer"
+                  />
 
-                    <span className="text-sm font-medium">
+                  <span className="text-sm font-medium">
                     One Way
-                    </span>
+                  </span>
+
                 </label>
 
+              </div>
 
-                <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                    type="radio"
-                    name="trip"
-                    value="MULTI_CITY"
-                    checked={tripType === "MULTI_CITY"}
-                    onChange={(e) => setTripType(e.target.value)}
-                    className="accent-blue-600"
-                    />
+              {/* ================================================= */}
+              {/* SEARCH FIELDS */}
+              {/* ================================================= */}
 
-                    <span className="text-sm font-medium">
-                    Multi City
-                    </span>
-                </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
 
-                </div>
+                {/* ================================================= */}
+                {/* FROM */}
+                {/* ================================================= */}
 
-
-                {/* Search Fields */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-
-               {/* FROM */}
                 <div className="relative border border-gray-200 rounded-xl p-3 hover:border-blue-400 transition">
 
                   <div className="flex items-center gap-2 text-gray-400 text-xs mb-1">
+
                     <FaPlaneDeparture />
-                    <span>SOURCE</span>
+
+                    <span>
+                      SOURCE
+                    </span>
+
                   </div>
 
                   <input
                     type="text"
-                    value={sources ? `${sources.city} (${sources.code})` : fromSearch}
+                    value={
+                      sources
+                        ? `${sources.city} (${sources.code})`
+                        : fromSearch
+                    }
                     placeholder="City or airport"
                     onChange={(e) => {
                       setSources(null);
@@ -349,6 +400,7 @@ const LandingPage = () => {
                       bg-transparent
                       text-sm
                       placeholder:text-gray-400
+                      cursor-text
                     "
                   />
 
@@ -360,23 +412,29 @@ const LandingPage = () => {
 
                   {/* FROM DROPDOWN */}
                   {showFromDropdown && fromSearch && (
-                    <div className="
-                      absolute
-                      z-50
-                      left-0
-                      right-0
-                      top-full
-                      mt-2
-                      bg-white
-                      border
-                      border-gray-200
-                      rounded-xl
-                      shadow-xl
-                      max-h-64
-                      overflow-y-auto
-                    ">
+
+                    <div
+                      className="
+                        absolute
+                        z-50
+                        left-0
+                        right-0
+                        top-full
+                        mt-2
+                        bg-white
+                        border
+                        border-gray-200
+                        rounded-xl
+                        shadow-xl
+                        max-h-64
+                        overflow-y-auto
+                      "
+                    >
+
                       {filteredFromAirports.length > 0 ? (
+
                         filteredFromAirports.map((airport) => (
+
                           <button
                             type="button"
                             key={airport.code}
@@ -395,10 +453,14 @@ const LandingPage = () => {
                               border-b
                               border-gray-100
                               last:border-b-0
+                              cursor-pointer
                             "
                           >
+
                             <div className="flex items-center justify-between">
+
                               <div>
+
                                 <p className="font-semibold text-gray-800">
                                   {airport.city}
                                 </p>
@@ -410,34 +472,47 @@ const LandingPage = () => {
                                 <p className="text-xs text-gray-400">
                                   {airport.country}
                                 </p>
+
                               </div>
 
-                              <span className="
-                                font-bold
-                                text-blue-600
-                                text-sm
-                                bg-blue-50
-                                px-2
-                                py-1
-                                rounded
-                              ">
+                              <span
+                                className="
+                                  font-bold
+                                  text-blue-600
+                                  text-sm
+                                  bg-blue-50
+                                  px-2
+                                  py-1
+                                  rounded
+                                "
+                              >
                                 {airport.code}
                               </span>
+
                             </div>
+
                           </button>
+
                         ))
+
                       ) : (
+
                         <div className="px-4 py-4 text-sm text-gray-500">
                           No airports found
                         </div>
+
                       )}
+
                     </div>
+
                   )}
 
                 </div>
 
-
+                {/* ================================================= */}
                 {/* SWAP BUTTON */}
+                {/* ================================================= */}
+
                 <div className="relative hidden lg:flex items-center justify-center -mx-2 z-10">
 
                   <button
@@ -462,6 +537,7 @@ const LandingPage = () => {
                       hover:border-blue-400
                       hover:shadow-lg
                       transition
+                      cursor-pointer
                       disabled:opacity-40
                       disabled:cursor-not-allowed
                     "
@@ -471,13 +547,20 @@ const LandingPage = () => {
 
                 </div>
 
-
+                {/* ================================================= */}
                 {/* TO */}
+                {/* ================================================= */}
+
                 <div className="relative border border-gray-200 rounded-xl p-3 hover:border-blue-400 transition">
 
                   <div className="flex items-center gap-2 text-gray-400 text-xs mb-1">
+
                     <FaPlaneArrival />
-                    <span>DESTINATION</span>
+
+                    <span>
+                      DESTINATION
+                    </span>
+
                   </div>
 
                   <input
@@ -502,6 +585,7 @@ const LandingPage = () => {
                       bg-transparent
                       text-sm
                       placeholder:text-gray-400
+                      cursor-text
                     "
                   />
 
@@ -513,23 +597,29 @@ const LandingPage = () => {
 
                   {/* TO DROPDOWN */}
                   {showToDropdown && toSearch && (
-                    <div className="
-                      absolute
-                      z-50
-                      left-0
-                      right-0
-                      top-full
-                      mt-2
-                      bg-white
-                      border
-                      border-gray-200
-                      rounded-xl
-                      shadow-xl
-                      max-h-64
-                      overflow-y-auto
-                    ">
+
+                    <div
+                      className="
+                        absolute
+                        z-50
+                        left-0
+                        right-0
+                        top-full
+                        mt-2
+                        bg-white
+                        border
+                        border-gray-200
+                        rounded-xl
+                        shadow-xl
+                        max-h-64
+                        overflow-y-auto
+                      "
+                    >
+
                       {filteredToAirports.length > 0 ? (
+
                         filteredToAirports.map((airport) => (
+
                           <button
                             type="button"
                             key={airport.code}
@@ -548,10 +638,14 @@ const LandingPage = () => {
                               border-b
                               border-gray-100
                               last:border-b-0
+                              cursor-pointer
                             "
                           >
+
                             <div className="flex items-center justify-between">
+
                               <div>
+
                                 <p className="font-semibold text-gray-800">
                                   {airport.city}
                                 </p>
@@ -563,68 +657,102 @@ const LandingPage = () => {
                                 <p className="text-xs text-gray-400">
                                   {airport.country}
                                 </p>
+
                               </div>
 
-                              <span className="
-                                font-bold
-                                text-blue-600
-                                text-sm
-                                bg-blue-50
-                                px-2
-                                py-1
-                                rounded
-                              ">
+                              <span
+                                className="
+                                  font-bold
+                                  text-blue-600
+                                  text-sm
+                                  bg-blue-50
+                                  px-2
+                                  py-1
+                                  rounded
+                                "
+                              >
                                 {airport.code}
                               </span>
+
                             </div>
+
                           </button>
+
                         ))
+
                       ) : (
+
                         <div className="px-4 py-4 text-sm text-gray-500">
                           No airports found
                         </div>
+
                       )}
+
                     </div>
+
                   )}
 
                 </div>
 
-                {/* Departure */}
-                <div className="border border-gray-200 rounded-xl p-3 hover:border-blue-400 transition">
+                {/* ================================================= */}
+                {/* DEPARTURE */}
+                {/* ================================================= */}
 
-                <div className="flex items-center gap-2 text-gray-400 text-xs mb-1">
+                <div
+                  className="
+                    border
+                    border-gray-200
+                    rounded-xl
+                    p-3
+                    hover:border-blue-400
+                    transition
+                  "
+                >
+
+                  <div className="flex items-center gap-2 text-gray-400 text-xs mb-1">
+
                     <FiCalendar />
-                    <span>DEPARTURE</span>
-                </div>
 
-                <input
+                    <span>
+                      DEPARTURE
+                    </span>
+
+                  </div>
+
+                  <input
                     type="date"
                     value={departureDate}
                     min={today}
                     onChange={(e) => {
-                    const selectedDate = e.target.value;
 
-                    setDepartureDate(selectedDate);
+                      const selectedDate = e.target.value;
 
-                    // Clear return date if it becomes invalid
-                    if (returnDate && returnDate < selectedDate) {
+                      setDepartureDate(selectedDate);
+
+                      if (
+                        returnDate &&
+                        returnDate < selectedDate
+                      ) {
                         setReturnDate("");
-                    }
+                      }
+
                     }}
                     className="
-                    w-full
-                    font-semibold
-                    text-gray-800
-                    outline-none
-                    bg-transparent
-                    cursor-pointer
+                      w-full
+                      font-semibold
+                      text-gray-800
+                      outline-none
+                      bg-transparent
+                      cursor-pointer
                     "
-                />
+                  />
 
                 </div>
 
-                {/* Return */}
-               
+                {/* ================================================= */}
+                {/* RETURN */}
+                {/* ================================================= */}
+
                 <div
                   className={`
                     border
@@ -638,22 +766,33 @@ const LandingPage = () => {
                     }
                   `}
                 >
+
                   <div className="flex items-center gap-2 text-gray-400 text-xs mb-1">
+
                     <FiCalendar />
-                    <span>RETURN</span>
+
+                    <span>
+                      RETURN
+                    </span>
+
                   </div>
 
                   {tripType === "ONE_WAY" ? (
+
                     <div className="font-semibold text-gray-400">
                       Not available for one way
                     </div>
+
                   ) : (
+
                     <input
                       type="date"
                       value={returnDate}
                       min={departureDate || today}
                       disabled={!departureDate}
-                      onChange={(e) => setReturnDate(e.target.value)}
+                      onChange={(e) =>
+                        setReturnDate(e.target.value)
+                      }
                       className="
                         w-full
                         font-semibold
@@ -664,324 +803,604 @@ const LandingPage = () => {
                         disabled:cursor-not-allowed
                       "
                     />
+
                   )}
+
                 </div>
 
-            </div>
+              </div>
 
+              {/* ================================================= */}
+              {/* TRAVELERS + CABIN */}
+              {/* ================================================= */}
 
-                {/* Travelers + Cabin Class */}
-                <div className="mt-4 flex flex-col sm:flex-row gap-3">
+              <div className="mt-4 flex flex-col sm:flex-row gap-3">
 
-                {/* ================= TRAVELERS ================= */}
+                {/* ================================================= */}
+                {/* TRAVELERS */}
+                {/* ================================================= */}
+
                 <div className="relative w-full sm:w-55">
 
-                    <button
+                  <button
                     type="button"
                     onClick={() => {
-                        setTravelerOpen(!travelerOpen);
-                        setCabinOpen(false);
+                      setTravelerOpen(!travelerOpen);
+                      setCabinOpen(false);
                     }}
-                    className="w-full h-13 border border-gray-200 rounded-xl px-3 
-                                flex items-center justify-between bg-white
-                                hover:border-blue-400 transition"
-                    >
+                    className="
+                      w-full
+                      h-13
+                      border
+                      border-gray-200
+                      rounded-xl
+                      px-3
+                      flex
+                      items-center
+                      justify-between
+                      bg-white
+                      hover:border-blue-400
+                      transition
+                      cursor-pointer
+                    "
+                  >
+
                     <div className="flex items-center gap-2">
 
-                        <FiUsers className="text-blue-600" size={19} />
+                      <FiUsers
+                        className="text-blue-600"
+                        size={19}
+                      />
 
-                        <div className="text-left">
+                      <div className="text-left">
+
                         <p className="text-[10px] text-gray-400 uppercase">
-                            Travelers
+                          Travelers
                         </p>
 
                         <p className="text-sm font-semibold text-gray-800">
-                            {totalTravelers} Traveler{totalTravelers !== 1 ? "s" : ""}
+                          {totalTravelers} Traveler
+                          {totalTravelers !== 1 ? "s" : ""}
                         </p>
-                        </div>
+
+                      </div>
 
                     </div>
 
                     <FiChevronDown
-                        className={`text-gray-500 transition-transform ${
-                        travelerOpen ? "rotate-180" : ""
-                        }`}
+                      className={`
+                        text-gray-500
+                        transition-transform
+                        ${
+                          travelerOpen
+                            ? "rotate-180"
+                            : ""
+                        }
+                      `}
                     />
-                    </button>
 
+                  </button>
 
-                    {/* Travelers Dropdown */}
-                    {travelerOpen && (
-                    <div className="absolute z-50 mt-2 w-full sm:w-70 
-                                    bg-white rounded-xl shadow-2xl border border-gray-200 p-4">
+                  {/* Travelers Dropdown */}
+                  {travelerOpen && (
 
-                        {/* Adults */}
-                        <div className="flex items-center justify-between py-3">
+                    <div
+                      className="
+                        absolute
+                        z-50
+                        mt-2
+                        w-full
+                        sm:w-70
+                        bg-white
+                        rounded-xl
+                        shadow-2xl
+                        border
+                        border-gray-200
+                        p-4
+                      "
+                    >
+
+                      {/* Adults */}
+                      <div className="flex items-center justify-between py-3">
 
                         <div>
-                            <p className="font-semibold text-gray-800 text-sm">
+
+                          <p className="font-semibold text-gray-800 text-sm">
                             Adults
-                            </p>
+                          </p>
 
-                            <p className="text-xs text-gray-400">
+                          <p className="text-xs text-gray-400">
                             Age 12+
-                            </p>
+                          </p>
+
                         </div>
 
                         <div className="flex items-center gap-3">
 
-                            <button
+                          <button
                             type="button"
-                            onClick={() =>
-                                traveller.ADULT > 1 &&
-                                updateTraveler("ADULT", -1)
-                            }
-                            className="w-8 h-8 rounded-full border border-gray-300
-                                        text-lg hover:bg-gray-100 disabled:opacity-40"
+                            onClick={() => {
+
+                              if (traveller.ADULT > 0) {
+
+                                setTravelerError("");
+
+                                updateTraveler(
+                                  "ADULT",
+                                  -1
+                                );
+
+                              }
+
+                            }}
+                            className="
+                              w-8
+                              h-8
+                              rounded-full
+                              border
+                              border-gray-300
+                              text-lg
+                              hover:bg-gray-100
+                              cursor-pointer
+                              disabled:opacity-40
+                              disabled:cursor-not-allowed
+                            "
                             disabled={traveller.ADULT <= 1}
-                            >
+                          >
                             −
-                            </button>
+                          </button>
 
-                            <span className="w-5 text-center font-semibold">
+                          <span className="w-5 text-center font-semibold">
                             {traveller.ADULT}
-                            </span>
+                          </span>
 
-                            <button
+                          <button
                             type="button"
-                            onClick={() =>
-                                updateTraveler("ADULT", 1)
-                            }
-                            className="w-8 h-8 rounded-full border border-gray-300
-                                        text-lg hover:bg-gray-100"
-                            >
+                            onClick={() => {
+
+                              if (
+                                totalTravelers >=
+                                MAX_TRAVELERS
+                              ) {
+
+                                setTravelerError(
+                                  "You can select a maximum of 9 travelers"
+                                );
+
+                                return;
+                              }
+
+                              setTravelerError("");
+
+                              updateTraveler(
+                                "ADULT",
+                                1
+                              );
+
+                            }}
+                            className="
+                              w-8
+                              h-8
+                              rounded-full
+                              border
+                              border-gray-300
+                              text-lg
+                              hover:bg-gray-100
+                              cursor-pointer
+                            "
+                          >
                             +
-                            </button>
+                          </button>
 
                         </div>
-                        </div>
 
+                      </div>
 
-                        {/* Children */}
-                        <div className="flex items-center justify-between py-3 border-t">
+                      {/* Children */}
+                      <div className="flex items-center justify-between py-3 border-t">
 
                         <div>
-                            <p className="font-semibold text-gray-800 text-sm">
+
+                          <p className="font-semibold text-gray-800 text-sm">
                             Children
-                            </p>
+                          </p>
 
-                            <p className="text-xs text-gray-400">
+                          <p className="text-xs text-gray-400">
                             Age 2–11
-                            </p>
+                          </p>
+
                         </div>
 
                         <div className="flex items-center gap-3">
 
-                            <button
+                          <button
                             type="button"
-                            onClick={() =>
-                                traveller.CHILD > 0 &&
-                                updateTraveler("CHILD", -1)
-                            }
-                            className="w-8 h-8 rounded-full border border-gray-300
-                                        text-lg hover:bg-gray-100 disabled:opacity-40"
+                            onClick={() => {
+
+                              if (traveller.CHILD > 0) {
+
+                                setTravelerError("");
+
+                                updateTraveler(
+                                  "CHILD",
+                                  -1
+                                );
+
+                              }
+
+                            }}
+                            className="
+                              w-8
+                              h-8
+                              rounded-full
+                              border
+                              border-gray-300
+                              text-lg
+                              hover:bg-gray-100
+                              cursor-pointer
+                              disabled:opacity-40
+                              disabled:cursor-not-allowed
+                            "
                             disabled={traveller.CHILD <= 0}
-                            >
+                          >
                             −
-                            </button>
+                          </button>
 
-                            <span className="w-5 text-center font-semibold">
+                          <span className="w-5 text-center font-semibold">
                             {traveller.CHILD}
-                            </span>
+                          </span>
 
-                            <button
+                          <button
                             type="button"
-                            onClick={() =>
-                                updateTraveler("CHILD", 1)
-                            }
-                            className="w-8 h-8 rounded-full border border-gray-300
-                                        text-lg hover:bg-gray-100"
-                            >
+                            onClick={() => {
+
+                              if (
+                                totalTravelers >=
+                                MAX_TRAVELERS
+                              ) {
+
+                                setTravelerError(
+                                  "You can select a maximum of 9 travelers"
+                                );
+
+                                return;
+                              }
+
+                              setTravelerError("");
+
+                              updateTraveler(
+                                "CHILD",
+                                1
+                              );
+
+                            }}
+                            className="
+                              w-8
+                              h-8
+                              rounded-full
+                              border
+                              border-gray-300
+                              text-lg
+                              hover:bg-gray-100
+                              cursor-pointer
+                            "
+                          >
                             +
-                            </button>
+                          </button>
 
                         </div>
-                        </div>
 
+                      </div>
 
-                        {/* Infants */}
-                        <div className="flex items-center justify-between py-3 border-t">
+                      {/* Infants */}
+                      <div className="flex items-center justify-between py-3 border-t">
 
                         <div>
-                            <p className="font-semibold text-gray-800 text-sm">
-                            Infants
-                            </p>
 
-                            <p className="text-xs text-gray-400">
+                          <p className="font-semibold text-gray-800 text-sm">
+                            Infants
+                          </p>
+
+                          <p className="text-xs text-gray-400">
                             Under 2
-                            </p>
+                          </p>
+
                         </div>
 
                         <div className="flex items-center gap-3">
 
-                            <button
+                          <button
                             type="button"
-                            onClick={() =>
-                                traveller.INFANT > 0 &&
-                                updateTraveler("INFANT", -1)
-                            }
-                            className="w-8 h-8 rounded-full border border-gray-300
-                                        text-lg hover:bg-gray-100 disabled:opacity-40"
+                            onClick={() => {
+
+                              if (
+                                traveller.INFANT > 0
+                              ) {
+
+                                setTravelerError("");
+
+                                updateTraveler(
+                                  "INFANT",
+                                  -1
+                                );
+
+                              }
+
+                            }}
+                            className="
+                              w-8
+                              h-8
+                              rounded-full
+                              border
+                              border-gray-300
+                              text-lg
+                              hover:bg-gray-100
+                              cursor-pointer
+                              disabled:opacity-40
+                              disabled:cursor-not-allowed
+                            "
                             disabled={traveller.INFANT <= 0}
-                            >
+                          >
                             −
-                            </button>
+                          </button>
 
-                            <span className="w-5 text-center font-semibold">
+                          <span className="w-5 text-center font-semibold">
                             {traveller.INFANT}
-                            </span>
+                          </span>
 
-                            <button
+                          <button
                             type="button"
-                            onClick={() =>
-                                updateTraveler("INFANT", 1)
-                            }
-                            className="w-8 h-8 rounded-full border border-gray-300
-                                        text-lg hover:bg-gray-100"
-                            >
+                            onClick={() => {
+
+                              if (
+                                totalTravelers >=
+                                MAX_TRAVELERS
+                              ) {
+
+                                setTravelerError(
+                                  "You can select a maximum of 9 travelers"
+                                );
+
+                                return;
+                              }
+
+                              setTravelerError("");
+
+                              updateTraveler(
+                                "INFANT",
+                                1
+                              );
+
+                            }}
+                            className="
+                              w-8
+                              h-8
+                              rounded-full
+                              border
+                              border-gray-300
+                              text-lg
+                              hover:bg-gray-100
+                              cursor-pointer
+                            "
+                          >
                             +
-                            </button>
+                          </button>
 
                         </div>
-                        </div>
 
+                      </div>
 
-                        {/* Done */}
-                        <button
+                      {/* Error */}
+                      {travelerError && (
+
+                        <p className="mt-2 text-xs text-red-500 text-center">
+                          {travelerError}
+                        </p>
+
+                      )}
+
+                      {/* Done */}
+                      <button
                         type="button"
-                        onClick={() => setTravelerOpen(false)}
-                        className="w-full mt-3 h-9 rounded-lg bg-blue-600
-                                    text-white text-sm font-semibold hover:bg-blue-700"
-                        >
+                        onClick={() =>
+                          setTravelerOpen(false)
+                        }
+                        className="
+                          w-full
+                          mt-3
+                          h-9
+                          rounded-lg
+                          bg-blue-600
+                          text-white
+                          text-sm
+                          font-semibold
+                          hover:bg-blue-700
+                          cursor-pointer
+                        "
+                      >
                         Done
-                        </button>
+                      </button>
 
                     </div>
-                    )}
+
+                  )}
 
                 </div>
 
+                {/* ================================================= */}
+                {/* CABIN CLASS */}
+                {/* ================================================= */}
 
-                {/* ================= CABIN CLASS ================= */}
                 <div className="relative w-full sm:w-55">
 
-                    <button
+                  <button
                     type="button"
                     onClick={() => {
-                        setCabinOpen(!cabinOpen);
-                        setTravelerOpen(false);
+                      setCabinOpen(!cabinOpen);
+                      setTravelerOpen(false);
                     }}
-                    className="w-full h-13 border border-gray-200 rounded-xl px-3
-                                flex items-center justify-between bg-white
-                                hover:border-blue-400 transition"
-                    >
+                    className="
+                      w-full
+                      h-13
+                      border
+                      border-gray-200
+                      rounded-xl
+                      px-3
+                      flex
+                      items-center
+                      justify-between
+                      bg-white
+                      hover:border-blue-400
+                      transition
+                      cursor-pointer
+                    "
+                  >
 
                     <div className="text-left">
 
-                        <p className="text-[10px] text-gray-400 uppercase">
+                      <p className="text-[10px] text-gray-400 uppercase">
                         Cabin Class
-                        </p>
+                      </p>
 
-                        <p className="text-sm font-semibold text-gray-800">
+                      <p className="text-sm font-semibold text-gray-800">
                         {cabin}
-                        </p>
+                      </p>
 
                     </div>
 
                     <FiChevronDown
-                        className={`text-gray-500 transition-transform ${
-                        cabinOpen ? "rotate-180" : ""
-                        }`}
+                      className={`
+                        text-gray-500
+                        transition-transform
+                        ${
+                          cabinOpen
+                            ? "rotate-180"
+                            : ""
+                        }
+                      `}
                     />
 
-                    </button>
+                  </button>
 
+                  {/* Cabin Dropdown */}
+                  {cabinOpen && (
 
-                    {/* Cabin Dropdown */}
-                    {cabinOpen && (
-                    <div className="absolute z-50 mt-2 w-full bg-white
-                                    rounded-xl shadow-2xl border border-gray-200
-                                    overflow-hidden">
+                    <div
+                      className="
+                        absolute
+                        z-50
+                        mt-2
+                        w-full
+                        bg-white
+                        rounded-xl
+                        shadow-2xl
+                        border
+                        border-gray-200
+                        overflow-hidden
+                      "
+                    >
 
-                        {[
+                      {[
                         "Economy",
                         "Premium Economy",
                         "Business",
                         "First",
-                        ].map((cabin) => (
+                      ].map((cabinOption) => (
+
                         <button
-                            key={cabin}
-                            type="button"
-                            onClick={() => {
-                            setCabin(cabin);
+                          key={cabinOption}
+                          type="button"
+                          onClick={() => {
+                            setCabin(cabinOption);
                             setCabinOpen(false);
-                            }}
-                            className={`w-full text-left px-4 py-3 text-sm
-                                        hover:bg-blue-50 transition
-                                        ${
-                                        cabin === cabin
-                                            ? "bg-blue-50 text-blue-600 font-semibold"
-                                            : "text-gray-700"
-                                        }`}
+                          }}
+                          className={`
+                            w-full
+                            text-left
+                            px-4
+                            py-3
+                            text-sm
+                            hover:bg-blue-50
+                            transition
+                            cursor-pointer
+                            ${
+                              cabin === cabinOption
+                                ? "bg-blue-50 text-blue-600 font-semibold"
+                                : "text-gray-700"
+                            }
+                          `}
                         >
-                            {cabin}
+                          {cabinOption}
                         </button>
-                        ))}
+
+                      ))}
 
                     </div>
-                    )}
+
+                  )}
 
                 </div>
+
+                {/* ================================================= */}
+                {/* SEARCH BUTTON */}
+                {/* ================================================= */}
 
                 <button
-                      className="relative w-full
-                      sm:w-75
-                      h-13
-                      bg-linear-to-r
-                      from-blue-600
-                      to-purple-600
-                      hover:from-blue-700
-                      hover:to-purple-700
-                      text-white
-                      rounded-xl
-                      font-semibold
-                      flex
-                      items-center
-                      justify-center
-                      gap-2
-                      transition
-                      shadow-lg
-                      " 
-                      onClick={handleSubmit}
-                  >
-                      <FiSearch size={20} />
-                      Search Flights
-                  </button>
+                  type="button"
+                  className="
+                    relative
+                    w-full
+                    sm:w-75
+                    h-13
+                    bg-linear-to-r
+                    from-blue-600
+                    to-purple-600
+                    hover:from-blue-700
+                    hover:to-purple-700
+                    text-white
+                    rounded-xl
+                    font-semibold
+                    flex
+                    items-center
+                    justify-center
+                    gap-2
+                    transition
+                    shadow-lg
+                    ml-0
+                    sm:ml-20
+                    md:ml-40
+                    lg:ml-95
+                    cursor-pointer
+                  "
+                  onClick={handleSubmit}
+                >
 
-                </div>
+                  <FiSearch size={20} />
+
+                  Search Flights
+
+                </button>
+
+              </div>
 
             </div>
 
-            </div>
+          </div>
 
         </div>
+
       </section>
 
-      {/* ================= FEATURES ================= */}
+      {/* ========================================================= */}
+      {/* FEATURES */}
+      {/* ========================================================= */}
+
       <section className="py-16 sm:py-20 bg-white">
+
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
           <div className="text-center max-w-2xl mx-auto">
+
             <p className="text-blue-600 font-semibold text-sm uppercase tracking-wider">
               Why choose Sky Flights?
             </p>
@@ -994,13 +1413,18 @@ const LandingPage = () => {
               Simple, reliable and convenient flight booking designed
               for modern travelers.
             </p>
+
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-12">
 
+            {/* Easy Search */}
             <div className="p-6 rounded-2xl bg-blue-50 hover:shadow-lg transition">
+
               <div className="w-12 h-12 rounded-xl bg-blue-600 text-white flex items-center justify-center">
+
                 <FiSearch size={24} />
+
               </div>
 
               <h3 className="mt-5 text-xl font-bold">
@@ -1011,11 +1435,16 @@ const LandingPage = () => {
                 Search and compare flights from multiple airlines
                 in one convenient place.
               </p>
+
             </div>
 
+            {/* Best Prices */}
             <div className="p-6 rounded-2xl bg-purple-50 hover:shadow-lg transition">
+
               <div className="w-12 h-12 rounded-xl bg-purple-600 text-white flex items-center justify-center">
+
                 <FiCheckCircle size={24} />
+
               </div>
 
               <h3 className="mt-5 text-xl font-bold">
@@ -1026,11 +1455,16 @@ const LandingPage = () => {
                 Find competitive fares and choose the option
                 that works best for your budget.
               </p>
+
             </div>
 
+            {/* Secure Booking */}
             <div className="p-6 rounded-2xl bg-green-50 hover:shadow-lg transition">
+
               <div className="w-12 h-12 rounded-xl bg-green-600 text-white flex items-center justify-center">
+
                 <FiShield size={24} />
+
               </div>
 
               <h3 className="mt-5 text-xl font-bold">
@@ -1041,22 +1475,30 @@ const LandingPage = () => {
                 Your booking information is protected with
                 secure and reliable technology.
               </p>
+
             </div>
 
           </div>
+
         </div>
+
       </section>
 
-      {/* ================= DESTINATIONS ================= */}
+      {/* ========================================================= */}
+      {/* DESTINATIONS */}
+      {/* ========================================================= */}
+
       <section
         id="destinations"
         className="py-16 sm:py-20 bg-gray-50"
       >
+
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
           <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
 
             <div>
+
               <p className="text-blue-600 font-semibold">
                 Explore
               </p>
@@ -1068,9 +1510,20 @@ const LandingPage = () => {
               <p className="text-gray-500 mt-2">
                 Find your next unforgettable destination.
               </p>
+
             </div>
 
-            <button className="flex items-center gap-2 text-blue-600 font-semibold">
+            <button
+              type="button"
+              className="
+                flex
+                items-center
+                gap-2
+                text-blue-600
+                font-semibold
+                cursor-pointer
+              "
+            >
               View all
               <FiArrowRight />
             </button>
@@ -1109,9 +1562,19 @@ const LandingPage = () => {
                   "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?auto=format&fit=crop&w=800&q=80",
               },
             ].map((destination) => (
+
               <div
                 key={destination.city}
-                className="group bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition"
+                className="
+                  group
+                  bg-white
+                  rounded-2xl
+                  overflow-hidden
+                  shadow-sm
+                  hover:shadow-xl
+                  transition
+                  cursor-pointer
+                "
               >
 
                 <div className="relative h-48 overflow-hidden">
@@ -1119,7 +1582,14 @@ const LandingPage = () => {
                   <img
                     src={destination.image}
                     alt={destination.city}
-                    className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
+                    className="
+                      w-full
+                      h-full
+                      object-cover
+                      group-hover:scale-105
+                      transition
+                      duration-500
+                    "
                   />
 
                   <div className="absolute inset-0 bg-linear-to-t from-black/50 to-transparent" />
@@ -1142,20 +1612,32 @@ const LandingPage = () => {
                       {destination.price}
                     </span>
 
-                    <FiArrowRight className="text-blue-600 group-hover:translate-x-1 transition" />
+                    <FiArrowRight
+                      className="
+                        text-blue-600
+                        group-hover:translate-x-1
+                        transition
+                      "
+                    />
 
                   </div>
 
                 </div>
 
               </div>
+
             ))}
 
           </div>
+
         </div>
+
       </section>
 
-      {/* ================= CTA ================= */}
+      {/* ========================================================= */}
+      {/* CTA */}
+      {/* ========================================================= */}
+
       <section
         id="offers"
         className="
@@ -1202,6 +1684,7 @@ const LandingPage = () => {
               font-bold
               hover:bg-blue-50
               transition
+              cursor-pointer
             "
           >
             Book a Flight
@@ -1209,18 +1692,25 @@ const LandingPage = () => {
           </Link>
 
         </div>
+
       </section>
 
-      {/* ================= FOOTER ================= */}
+      {/* ========================================================= */}
+      {/* FOOTER */}
+      {/* ========================================================= */}
+
       <footer
         id="about"
         className="bg-gray-950 text-gray-400 py-10"
       >
+
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
 
+            {/* Brand */}
             <div>
+
               <div className="flex items-center gap-2">
 
                 <FaPlaneDeparture className="text-blue-500" />
@@ -1235,51 +1725,94 @@ const LandingPage = () => {
                 Making flight booking simple, secure and
                 convenient for travelers everywhere.
               </p>
+
             </div>
 
+            {/* Company */}
             <div>
+
               <h3 className="text-white font-semibold mb-4">
                 Company
               </h3>
 
               <div className="space-y-2 text-sm">
-                <p>About Us</p>
-                <p>Careers</p>
-                <p>Contact</p>
+
+                <p className="cursor-pointer hover:text-white transition">
+                  About Us
+                </p>
+
+                <p className="cursor-pointer hover:text-white transition">
+                  Careers
+                </p>
+
+                <p className="cursor-pointer hover:text-white transition">
+                  Contact
+                </p>
+
               </div>
+
             </div>
 
+            {/* Support */}
             <div>
+
               <h3 className="text-white font-semibold mb-4">
                 Support
               </h3>
 
               <div className="space-y-2 text-sm">
-                <p>Help Center</p>
-                <p>Booking Guide</p>
-                <p>Cancellation</p>
+
+                <p className="cursor-pointer hover:text-white transition">
+                  Help Center
+                </p>
+
+                <p className="cursor-pointer hover:text-white transition">
+                  Booking Guide
+                </p>
+
+                <p className="cursor-pointer hover:text-white transition">
+                  Cancellation
+                </p>
+
               </div>
+
             </div>
 
+            {/* Legal */}
             <div>
+
               <h3 className="text-white font-semibold mb-4">
                 Legal
               </h3>
 
               <div className="space-y-2 text-sm">
-                <p>Privacy Policy</p>
-                <p>Terms & Conditions</p>
-                <p>Refund Policy</p>
+
+                <p className="cursor-pointer hover:text-white transition">
+                  Privacy Policy
+                </p>
+
+                <p className="cursor-pointer hover:text-white transition">
+                  Terms & Conditions
+                </p>
+
+                <p className="cursor-pointer hover:text-white transition">
+                  Refund Policy
+                </p>
+
               </div>
+
             </div>
 
           </div>
 
           <div className="border-t border-gray-800 mt-8 pt-6 text-center text-sm">
+
             © 2026 Sky Flights. All rights reserved.
+
           </div>
 
         </div>
+
       </footer>
 
     </div>

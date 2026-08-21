@@ -1,21 +1,43 @@
+
+
 import React, { useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+
 import { sendSeatUpdate } from "../services/websocket";
+
+import {
+    updateSeat,
+    confirmFlightSeat,
+    removeConfirmedSeat,
+} from "../slice/flightSlice";
 
 const FlightCard = ({
     flight,
     onSelect,
     selected = false,
-
-    // ==========================================
-    // WEBSOCKET SEAT UPDATES
-    // ==========================================
-
-    seatUpdates = {},
 }) => {
+
+    const dispatch = useDispatch();
 
     const [showDetails, setShowDetails] = useState(false);
     const [showSeats, setShowSeats] = useState(false);
     const [selectedSeat, setSelectedSeat] = useState(null);
+
+
+    // ==========================================
+    // REDUX
+    // ==========================================
+
+    const seatUpdates = useSelector(
+        (state) =>
+            state.flight?.seatUpdates?.[flight.id] || {}
+    );
+
+    const confirmedSeat = useSelector(
+        (state) =>
+            state.flight?.confirmSeat?.[flight.id] || null
+    );
+
 
     // ==========================================
     // CABIN / SEAT CONFIGURATION
@@ -24,6 +46,7 @@ const FlightCard = ({
     const cabinType = flight.cabin || "Economy";
 
     const cabinConfig = {
+
         First: {
             rows: 5,
             columns: ["A", "B", "C"],
@@ -40,65 +63,67 @@ const FlightCard = ({
 
         Premium_Economy: {
             rows: 8,
-            columns: ["A", "B", "C", "D", "E", "F", "G"],
+            columns: [
+                "A",
+                "B",
+                "C",
+                "D",
+                "E",
+                "F",
+                "G",
+            ],
             layout: "2-3-2",
             label: "Premium Economy",
         },
 
         Economy: {
             rows: 10,
-            columns: ["A", "B", "C", "D", "E", "F"],
+            columns: [
+                "A",
+                "B",
+                "C",
+                "D",
+                "E",
+                "F",
+            ],
             layout: "3-3",
             label: "Economy Class",
         },
     };
 
+
     const currentCabin =
         cabinConfig[cabinType] ||
-        cabinConfig.Economy;
+        cabinConfig.Premium_Economy;
 
     const seatRows = currentCabin.rows;
     const seatColumns = currentCabin.columns;
 
-    // ==========================================
-    // DEMO OCCUPIED SEATS
-    // ==========================================
-
-    const occupiedSeats = [
-        "A2",
-        "C3",
-        "D4",
-        "F5",
-        "B7",
-        "E8",
-    ];
 
     // ==========================================
-    // CHECK WEBSOCKET SEAT STATUS
+    // GET WEBSOCKET SEAT STATUS
     // ==========================================
 
     const getWebSocketSeatStatus = (seat) => {
+
         return seatUpdates?.[seat] || null;
     };
+
 
     // ==========================================
     // CHECK IF SEAT IS OCCUPIED
     // ==========================================
 
-  const isSeatOccupied = (seat) => {
+    const isSeatOccupied = (seat) => {
 
-    // Existing occupied seats
-    if (occupiedSeats.includes(seat)) {
-        return true;
-    }
+        const status = getWebSocketSeatStatus(seat);
 
-    const status = getWebSocketSeatStatus(seat);
+        return (
+            status === "BOOKED" ||
+            status === "OCCUPIED"
+        );
+    };
 
-    return (
-        status === "BOOKED" ||
-        status === "OCCUPIED"
-    );
-};
 
     // ==========================================
     // GET SEAT STATUS
@@ -106,47 +131,84 @@ const FlightCard = ({
 
     const getSeatStatus = (seat) => {
 
-    // Demo occupied seats
-    if (occupiedSeats.includes(seat)) {
-        return "OCCUPIED";
-    }
+        const status =
+            getWebSocketSeatStatus(seat);
 
-    const websocketStatus =
-        getWebSocketSeatStatus(seat);
+        // Confirmed seat from Redux
+        if (confirmedSeat === seat) {
+            return "BOOKED";
+        }
 
-    return websocketStatus || "AVAILABLE";
-};
+        return status || "AVAILABLE";
+    };
+
 
     // ==========================================
     // HANDLE SEAT CLICK
     // ==========================================
 
-const handleSeatClick = (seat) => {
-    // Don't allow occupied seats
-    if (isSeatOccupied(seat)) {
-        return;
-    }
+    const handleSeatClick = (seat) => {
 
-    // If another seat was already selected
-    if (selectedSeat && selectedSeat !== seat) {
+        // Don't allow occupied seats
+        if (isSeatOccupied(seat)) {
+            return;
+        }
 
-        // Release previous selected seat
+
+        // Don't allow another user's
+        // SELECTED seat
+        const status =
+            getWebSocketSeatStatus(seat);
+
+        if (status === "SELECTED") {
+            return;
+        }
+
+
+        // Release previous local selection
+        if (
+            selectedSeat &&
+            selectedSeat !== seat
+        ) {
+
+            sendSeatUpdate(
+                flight.id,
+                selectedSeat,
+                "AVAILABLE"
+            );
+
+            dispatch(
+                updateSeat({
+                    flightId: flight.id,
+                    seatNumber: selectedSeat,
+                    status: "AVAILABLE",
+                })
+            );
+        }
+
+
+        // Select new seat
+        setSelectedSeat(seat);
+
+
+        // Update Redux
+        dispatch(
+            updateSeat({
+                flightId: flight.id,
+                seatNumber: seat,
+                status: "SELECTED",
+            })
+        );
+
+
+        // Send WebSocket update
         sendSeatUpdate(
             flight.id,
-            selectedSeat,
-            "AVAILABLE"
+            seat,
+            "SELECTED"
         );
-    }
+    };
 
-    // Select the new seat
-    setSelectedSeat(seat);
-
-    sendSeatUpdate(
-        flight.id,
-        seat,
-        "SELECTED"
-    );
-};
 
     // ==========================================
     // TOGGLE SEATS
@@ -154,20 +216,44 @@ const handleSeatClick = (seat) => {
 
     const toggleSeats = () => {
 
-        setShowSeats(!showSeats);
+        const newState = !showSeats;
 
-        if (showSeats) {
+        setShowSeats(newState);
+
+        if (!newState) {
+
+            // Release local selected seat
+            if (selectedSeat) {
+
+                sendSeatUpdate(
+                    flight.id,
+                    selectedSeat,
+                    "AVAILABLE"
+                );
+
+                dispatch(
+                    updateSeat({
+                        flightId: flight.id,
+                        seatNumber: selectedSeat,
+                        status: "AVAILABLE",
+                    })
+                );
+            }
+
             setSelectedSeat(null);
         }
     };
+
 
     // ==========================================
     // TOGGLE DETAILS
     // ==========================================
 
     const toggleDetails = () => {
+
         setShowDetails(!showDetails);
     };
+
 
     // ==========================================
     // CONFIRM SEAT
@@ -175,34 +261,108 @@ const handleSeatClick = (seat) => {
 
     const handleConfirmSeat = () => {
 
-    if (!selectedSeat) {
-        return;
-    }
+        if (!selectedSeat) {
+            return;
+        }
 
-    // Change selected seat to BOOKED
-    sendSeatUpdate(
-        flight.id,
-        selectedSeat,
-        "BOOKED"
-    );
 
-    console.log(
-        "Seat booked:",
-        selectedSeat
-    );
 
-    // Clear local selection
-    setSelectedSeat(null);
+        dispatch(
+            confirmFlightSeat({
+                flightId: flight.id,
+                seatNumber: selectedSeat,
+            })
+        );
 
-    // Close seat map
-    setShowSeats(false);
-};
+
+        // ======================================
+        // UPDATE REDUX SEAT STATUS
+        // ======================================
+
+        dispatch(
+            updateSeat({
+                flightId: flight.id,
+                seatNumber: selectedSeat,
+                status: "BOOKED",
+            })
+        );
+
+
+        // ======================================
+        // SEND BOOKED STATUS THROUGH WEBSOCKET
+        // ======================================
+
+        sendSeatUpdate(
+            flight.id,
+            selectedSeat,
+            "BOOKED"
+        );
+
+
+        console.log(
+            "Seat confirmed:",
+            flight.id,
+            selectedSeat
+        );
+
+
+        // Clear temporary local selection
+        setSelectedSeat(null);
+
+        // Close seat map
+        setShowSeats(false);
+    };
+
+
+    // ==========================================
+    // CANCEL CONFIRMED SEAT
+    // ==========================================
+
+    const handleRemoveConfirmedSeat = () => {
+
+        if (!confirmedSeat) {
+            return;
+        }
+
+
+        // Remove from Redux
+        dispatch(
+            removeConfirmedSeat(flight.id)
+        );
+
+
+        // Update WebSocket
+        sendSeatUpdate(
+            flight.id,
+            confirmedSeat,
+            "AVAILABLE"
+        );
+
+
+        // Update Redux seat status
+        dispatch(
+            updateSeat({
+                flightId: flight.id,
+                seatNumber: confirmedSeat,
+                status: "AVAILABLE",
+            })
+        );
+
+
+        console.log(
+            "Confirmed seat removed:",
+            flight.id,
+            confirmedSeat
+        );
+    };
+
 
     // ==========================================
     // RENDER
     // ==========================================
 
     return (
+
         <div
             className={`
                 w-full
@@ -276,6 +436,7 @@ const handleSeatClick = (seat) => {
 
                 </div>
 
+
                 <span
                     className="
                         shrink-0
@@ -292,6 +453,7 @@ const handleSeatClick = (seat) => {
                 </span>
 
             </div>
+
 
             {/* ========================================== */}
             {/* ROUTE */}
@@ -350,6 +512,7 @@ const handleSeatClick = (seat) => {
                     </span>
 
                 </div>
+
 
                 {/* Route */}
 
@@ -422,6 +585,7 @@ const handleSeatClick = (seat) => {
 
                 </div>
 
+
                 {/* Arrival */}
 
                 <div
@@ -473,6 +637,7 @@ const handleSeatClick = (seat) => {
 
             </div>
 
+
             {/* ========================================== */}
             {/* DIVIDER */}
             {/* ========================================== */}
@@ -484,6 +649,7 @@ const handleSeatClick = (seat) => {
                     my-5
                 "
             />
+
 
             {/* ========================================== */}
             {/* FLIGHT INFO + PRICE */}
@@ -510,7 +676,7 @@ const handleSeatClick = (seat) => {
                     "
                 >
 
-                    {/* Available Seats */}
+                    {/* Confirmed Seat */}
 
                     <div
                         className="
@@ -526,24 +692,43 @@ const handleSeatClick = (seat) => {
                                 text-gray-500
                             "
                         >
-                            Available Seats
+                            Seat
                         </span>
 
-                        <span
-                            className="
-                                px-2.5
-                                py-1
-                                bg-green-50
-                                text-green-600
-                                rounded-md
-                                text-sm
-                                font-semibold
-                            "
-                        >
-                            {flight.availableSeats}
-                        </span>
+                        {confirmedSeat ? (
+
+                            <span
+                                className="
+                                    px-2.5
+                                    py-1
+                                    bg-blue-50
+                                    text-blue-600
+                                    rounded-md
+                                    text-sm
+                                    font-semibold
+                                "
+                            >
+                                {confirmedSeat}
+                            </span>
+
+                        ) : (
+
+                            <span
+                                className="
+                                    px-2.5
+                                    py-1
+                                    bg-gray-50
+                                    text-gray-500
+                                    rounded-md
+                                    text-sm
+                                "
+                            >
+                                Not Selected
+                            </span>
+                        )}
 
                     </div>
+
 
                     {/* Price */}
 
@@ -572,6 +757,7 @@ const handleSeatClick = (seat) => {
                     </div>
 
                 </div>
+
 
                 {/* ========================================== */}
                 {/* ACTION BUTTONS */}
@@ -611,6 +797,7 @@ const handleSeatClick = (seat) => {
                             : "View Details"}
                     </button>
 
+
                     {/* Seats */}
 
                     <button
@@ -637,11 +824,14 @@ const handleSeatClick = (seat) => {
                             : "View Seats"}
                     </button>
 
+
                     {/* Select */}
 
                     <button
                         type="button"
-                        onClick={() => onSelect(flight)}
+                        onClick={() =>
+                            onSelect(flight)
+                        }
                         className={`
                             w-full
                             h-10
@@ -677,11 +867,13 @@ const handleSeatClick = (seat) => {
 
             </div>
 
+
             {/* ========================================== */}
             {/* FLIGHT DETAILS */}
             {/* ========================================== */}
 
             {showDetails && (
+
                 <div
                     className="
                         mt-6
@@ -737,6 +929,7 @@ const handleSeatClick = (seat) => {
 
                             </div>
 
+
                             <span
                                 className="
                                     hidden
@@ -755,6 +948,7 @@ const handleSeatClick = (seat) => {
                             </span>
 
                         </div>
+
 
                         <div
                             className="
@@ -796,11 +990,14 @@ const handleSeatClick = (seat) => {
                             />
 
                             <DetailItem
-                                label="Available Seats"
+                                label="Confirmed Seat"
                                 value={
-                                    flight.availableSeats
+                                    confirmedSeat ||
+                                    "Not Selected"
                                 }
-                                green
+                                green={
+                                    !!confirmedSeat
+                                }
                             />
 
                             <DetailItem
@@ -829,11 +1026,13 @@ const handleSeatClick = (seat) => {
                 </div>
             )}
 
+
             {/* ========================================== */}
             {/* SEAT MAP */}
             {/* ========================================== */}
 
             {showSeats && (
+
                 <div
                     className="
                         mt-6
@@ -893,7 +1092,14 @@ const handleSeatClick = (seat) => {
 
                             </div>
 
-                            <div className="flex gap-2">
+
+                            <div
+                                className="
+                                    flex
+                                    gap-2
+                                    flex-wrap
+                                "
+                            >
 
                                 <span
                                     className="
@@ -909,7 +1115,29 @@ const handleSeatClick = (seat) => {
                                     🟢 Live
                                 </span>
 
+
+                                {confirmedSeat && (
+
+                                    <span
+                                        className="
+                                            px-3
+                                            py-1.5
+                                            rounded-lg
+                                            bg-green-100
+                                            text-green-700
+                                            text-sm
+                                            font-semibold
+                                        "
+                                    >
+                                        Confirmed:{" "}
+                                        {confirmedSeat}
+                                    </span>
+
+                                )}
+
+
                                 {selectedSeat && (
+
                                     <span
                                         className="
                                             self-start
@@ -923,13 +1151,16 @@ const handleSeatClick = (seat) => {
                                             font-semibold
                                         "
                                     >
-                                        Seat {selectedSeat}
+                                        Seat{" "}
+                                        {selectedSeat}
                                     </span>
+
                                 )}
 
                             </div>
 
                         </div>
+
 
                         {/* Legend */}
 
@@ -952,6 +1183,7 @@ const handleSeatClick = (seat) => {
                                     gap-1.5
                                 "
                             >
+
                                 <span
                                     className="
                                         w-4
@@ -962,8 +1194,11 @@ const handleSeatClick = (seat) => {
                                         border-gray-300
                                     "
                                 />
+
                                 Available
+
                             </div>
+
 
                             <div
                                 className="
@@ -972,6 +1207,7 @@ const handleSeatClick = (seat) => {
                                     gap-1.5
                                 "
                             >
+
                                 <span
                                     className="
                                         w-4
@@ -980,8 +1216,11 @@ const handleSeatClick = (seat) => {
                                         bg-gray-300
                                     "
                                 />
+
                                 Occupied
+
                             </div>
+
 
                             <div
                                 className="
@@ -990,6 +1229,7 @@ const handleSeatClick = (seat) => {
                                     gap-1.5
                                 "
                             >
+
                                 <span
                                     className="
                                         w-4
@@ -998,8 +1238,11 @@ const handleSeatClick = (seat) => {
                                         bg-blue-600
                                     "
                                 />
+
                                 Selected
+
                             </div>
+
 
                             <div
                                 className="
@@ -1008,6 +1251,7 @@ const handleSeatClick = (seat) => {
                                     gap-1.5
                                 "
                             >
+
                                 <span
                                     className="
                                         w-4
@@ -1016,10 +1260,35 @@ const handleSeatClick = (seat) => {
                                         bg-orange-400
                                     "
                                 />
+
                                 Live Locked
+
+                            </div>
+
+
+                            <div
+                                className="
+                                    flex
+                                    items-center
+                                    gap-1.5
+                                "
+                            >
+
+                                <span
+                                    className="
+                                        w-4
+                                        h-4
+                                        rounded
+                                        bg-green-600
+                                    "
+                                />
+
+                                Confirmed
+
                             </div>
 
                         </div>
+
 
                         {/* ========================================== */}
                         {/* AIRCRAFT */}
@@ -1054,6 +1323,7 @@ const handleSeatClick = (seat) => {
                                     ✈️ FRONT / COCKPIT
                                 </div>
 
+
                                 {/* Seat Header */}
 
                                 <div
@@ -1069,6 +1339,7 @@ const handleSeatClick = (seat) => {
 
                                     {seatColumns.map(
                                         (column) => (
+
                                             <div
                                                 key={column}
                                                 className="
@@ -1080,14 +1351,20 @@ const handleSeatClick = (seat) => {
                                             >
                                                 {column}
                                             </div>
+
                                         )
                                     )}
 
                                 </div>
 
+
                                 {/* Seat Rows */}
 
-                                <div className="space-y-2">
+                                <div
+                                    className="
+                                        space-y-2
+                                    "
+                                >
 
                                     {Array.from(
                                         {
@@ -1099,6 +1376,7 @@ const handleSeatClick = (seat) => {
                                                 index + 1;
 
                                             return (
+
                                                 <div
                                                     key={row}
                                                     className="
@@ -1121,93 +1399,122 @@ const handleSeatClick = (seat) => {
                                                         {row}
                                                     </span>
 
+
                                                     {seatColumns.map(
                                                         (column) => {
 
                                                             const seat =
                                                                 `${column}${row}`;
 
-                                                            const occupied =
-                                                                isSeatOccupied(
-                                                                    seat
-                                                                );
-
                                                             const status =
                                                                 getSeatStatus(
                                                                     seat
                                                                 );
 
+
+                                                            const occupied =
+                                                                status ===
+                                                                    "BOOKED" ||
+                                                                status ===
+                                                                    "OCCUPIED";
+
+
                                                             const selectedSeatNow =
                                                                 selectedSeat ===
                                                                 seat;
 
+
+                                                            const confirmedSeatNow =
+                                                                confirmedSeat ===
+                                                                seat;
+
+
                                                             const liveLocked =
-                                                                    status === "SELECTED" &&
-                                                                    selectedSeat !== seat;
+                                                                status ===
+                                                                    "SELECTED" &&
+                                                                !selectedSeatNow &&
+                                                                !confirmedSeatNow;
+
 
                                                             return (
+
                                                                 <button
-                                                                    key={
-                                                                        seat
-                                                                    }
+                                                                    key={seat}
                                                                     type="button"
+
                                                                     disabled={
-                                                                        occupied
+                                                                        occupied ||
+                                                                        liveLocked ||
+                                                                        confirmedSeatNow
                                                                     }
+
                                                                     onClick={() =>
                                                                         handleSeatClick(
                                                                             seat
                                                                         )
                                                                     }
+
                                                                     title={
-                                                                        occupied
+                                                                        confirmedSeatNow
+                                                                            ? `Seat ${seat} is confirmed`
+                                                                            : occupied
                                                                             ? `Seat ${seat} is occupied`
+                                                                            : liveLocked
+                                                                            ? `Seat ${seat} is temporarily locked`
                                                                             : `Select seat ${seat}`
                                                                     }
-                                                                   className={`
-                                                                    h-8
-                                                                    sm:h-9
-                                                                    rounded-md
-                                                                    text-[10px]
-                                                                    sm:text-xs
-                                                                    font-semibold
-                                                                    transition-all
-                                                                    duration-150
 
-                                                                    ${
-                                                                        selectedSeatNow
-                                                                            ? `
-                                                                                bg-blue-600
-                                                                                text-white
-                                                                                ring-2
-                                                                                ring-blue-200
-                                                                            `
-                                                                            : liveLocked
-                                                                            ? `
-                                                                                bg-orange-400
-                                                                                text-white
-                                                                                cursor-not-allowed
-                                                                            `
-                                                                            : occupied
-                                                                            ? `
-                                                                                bg-gray-300
-                                                                                text-gray-500
-                                                                                cursor-not-allowed
-                                                                            `
-                                                                            : `
-                                                                                bg-white
-                                                                                border
-                                                                                border-gray-300
-                                                                                text-gray-600
-                                                                                hover:border-blue-500
-                                                                                hover:text-blue-600
-                                                                                hover:bg-blue-50
-                                                                            `
-                                                                    }
-                                                                `}
+                                                                    className={`
+                                                                        h-8
+                                                                        sm:h-9
+                                                                        rounded-md
+                                                                        text-[10px]
+                                                                        sm:text-xs
+                                                                        font-semibold
+                                                                        transition-all
+                                                                        duration-150
+
+                                                                        ${
+                                                                            confirmedSeatNow
+                                                                                ? `
+                                                                                    bg-green-600
+                                                                                    text-white
+                                                                                    cursor-not-allowed
+                                                                                `
+                                                                                : selectedSeatNow
+                                                                                ? `
+                                                                                    bg-blue-600
+                                                                                    text-white
+                                                                                    ring-2
+                                                                                    ring-blue-200
+                                                                                `
+                                                                                : liveLocked
+                                                                                ? `
+                                                                                    bg-orange-400
+                                                                                    text-white
+                                                                                    cursor-not-allowed
+                                                                                `
+                                                                                : occupied
+                                                                                ? `
+                                                                                    bg-gray-300
+                                                                                    text-gray-500
+                                                                                    cursor-not-allowed
+                                                                                `
+                                                                                : `
+                                                                                    bg-white
+                                                                                    border
+                                                                                    border-gray-300
+                                                                                    text-gray-600
+                                                                                    hover:border-blue-500
+                                                                                    hover:text-blue-600
+                                                                                    hover:bg-blue-50
+                                                                                `
+                                                                        }
+                                                                    `}
                                                                 >
                                                                     {seat}
                                                                 </button>
+
                                                             );
                                                         }
                                                     )}
@@ -1223,11 +1530,89 @@ const handleSeatClick = (seat) => {
 
                         </div>
 
+
+                        {/* ========================================== */}
+                        {/* CONFIRMED SEAT */}
+                        {/* ========================================== */}
+
+                        {confirmedSeat && (
+
+                            <div
+                                className="
+                                    mt-5
+                                    flex
+                                    flex-col
+                                    sm:flex-row
+                                    items-start
+                                    sm:items-center
+                                    justify-between
+                                    gap-3
+                                    p-4
+                                    rounded-lg
+                                    bg-green-50
+                                    border
+                                    border-green-200
+                                "
+                            >
+
+                                <div>
+
+                                    <p
+                                        className="
+                                            text-xs
+                                            text-green-600
+                                        "
+                                    >
+                                        Confirmed seat
+                                    </p>
+
+                                    <p
+                                        className="
+                                            text-base
+                                            font-bold
+                                            text-green-700
+                                            mt-0.5
+                                        "
+                                    >
+                                        {confirmedSeat}
+                                    </p>
+
+                                </div>
+
+
+                                <button
+                                    type="button"
+                                    onClick={
+                                        handleRemoveConfirmedSeat
+                                    }
+                                    className="
+                                        w-full
+                                        sm:w-auto
+                                        px-5
+                                        h-10
+                                        bg-red-600
+                                        hover:bg-red-700
+                                        text-white
+                                        rounded-lg
+                                        text-sm
+                                        font-semibold
+                                        transition
+                                    "
+                                >
+                                    Remove Seat
+                                </button>
+
+                            </div>
+
+                        )}
+
+
                         {/* ========================================== */}
                         {/* SELECTED SEAT */}
                         {/* ========================================== */}
 
                         {selectedSeat && (
+
                             <div
                                 className="
                                     mt-5
@@ -1270,6 +1655,7 @@ const handleSeatClick = (seat) => {
 
                                 </div>
 
+
                                 <button
                                     type="button"
                                     onClick={
@@ -1293,6 +1679,7 @@ const handleSeatClick = (seat) => {
                                 </button>
 
                             </div>
+
                         )}
 
                     </div>
@@ -1316,6 +1703,7 @@ const DetailItem = ({
 }) => {
 
     return (
+
         <div
             className="
                 p-3
@@ -1357,5 +1745,6 @@ const DetailItem = ({
         </div>
     );
 };
+
 
 export default FlightCard;

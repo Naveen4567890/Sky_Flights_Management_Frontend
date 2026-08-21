@@ -17,7 +17,7 @@ const BookingSummary = ({
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
 
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-500 px-5 sm:px-6 py-5">
+      <div className="bg-linear-to-r from-blue-600 to-blue-500 px-5 sm:px-6 py-5">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
             <span className="text-xl">✈️</span>

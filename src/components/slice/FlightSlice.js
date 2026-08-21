@@ -1,3 +1,6 @@
+
+
+
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import API from "../api/api";
 
@@ -41,10 +44,14 @@ const initialState = {
     selectedOnwardFlight: null,
     selectedReturnFlight: null,
 
+    confirmSeat: {},
+
     searchParams: null,
 
     loading: false,
     error: null,
+
+
     seatUpdates: {},
 };
 
@@ -69,9 +76,6 @@ const flightSlice = createSlice({
 
             const flight = action.payload;
 
-            // If same flight is already selected
-            // then deselect it
-
             if (
                 state.selectedOnwardFlight &&
                 state.selectedOnwardFlight.flightNumber ===
@@ -81,8 +85,6 @@ const flightSlice = createSlice({
                 state.selectedOnwardFlight = null;
 
             } else {
-
-                // Otherwise select the new flight
 
                 state.selectedOnwardFlight = flight;
             }
@@ -97,9 +99,6 @@ const flightSlice = createSlice({
 
             const flight = action.payload;
 
-            // If same flight is already selected
-            // then deselect it
-
             if (
                 state.selectedReturnFlight &&
                 state.selectedReturnFlight.flightNumber ===
@@ -109,8 +108,6 @@ const flightSlice = createSlice({
                 state.selectedReturnFlight = null;
 
             } else {
-
-                // Otherwise select the new flight
 
                 state.selectedReturnFlight = flight;
             }
@@ -124,8 +121,69 @@ const flightSlice = createSlice({
         clearSelectedFlights: (state) => {
 
             state.selectedOnwardFlight = null;
-
             state.selectedReturnFlight = null;
+        },
+
+
+        // ======================================
+        // CONFIRM SEAT
+        //
+        // flightId → seatNumber
+        // ======================================
+
+        confirmFlightSeat: (state, action) => {
+
+            const {
+                flightId,
+                seatNumber,
+            } = action.payload;
+
+            state.confirmSeat[flightId] =
+                seatNumber;
+        },
+
+
+        // ======================================
+        // REMOVE CONFIRMED SEAT
+        // ======================================
+
+        removeConfirmedSeat: (state, action) => {
+
+            const flightId = action.payload;
+
+            delete state.confirmSeat[flightId];
+        },
+
+
+        // ======================================
+        // CLEAR ALL CONFIRMED SEATS
+        // ======================================
+
+        clearConfirmedSeats: (state) => {
+
+            state.confirmSeat = {};
+        },
+
+
+        // ======================================
+        // UPDATE LIVE SEAT STATUS
+        // ======================================
+
+        updateSeat: (state, action) => {
+
+            const {
+                flightId,
+                seatNumber,
+                status,
+            } = action.payload;
+
+            if (!state.seatUpdates[flightId]) {
+
+                state.seatUpdates[flightId] = {};
+            }
+
+            state.seatUpdates[flightId][seatNumber] =
+                status;
         },
 
 
@@ -136,31 +194,18 @@ const flightSlice = createSlice({
         clearFlights: (state) => {
 
             state.onwardFlights = [];
-
             state.returnFlights = [];
 
             state.selectedOnwardFlight = null;
-
             state.selectedReturnFlight = null;
 
             state.searchParams = null;
 
             state.error = null;
-        },
-        updateSeat: (state, action) => {
 
-            const {
-                flightId,
-                seatNumber,
-                status,
-            } = action.payload;
+            state.seatUpdates = {};
 
-            if (!state.seatUpdates[flightId]) {
-                state.seatUpdates[flightId] = {};
-            }
-
-            state.seatUpdates[flightId][seatNumber] =
-                status;
+            state.confirmSeat = {};
         },
     },
 
@@ -211,7 +256,6 @@ const flightSlice = createSlice({
                     state.onwardFlights =
                         onwardFlights || [];
 
-
                     state.returnFlights =
                         returnFlights || [];
 
@@ -250,8 +294,14 @@ export const {
     selectOnwardFlight,
     selectReturnFlight,
     clearSelectedFlights,
+
+    confirmFlightSeat,
+    removeConfirmedSeat,
+    clearConfirmedSeats,
+
     clearFlights,
     updateSeat,
+
 } = flightSlice.actions;
 
 

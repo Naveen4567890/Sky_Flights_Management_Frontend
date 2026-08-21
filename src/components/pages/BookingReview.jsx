@@ -1,23 +1,30 @@
 import React from "react";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
+
 import BookingSummary from "./BookingSummary";
-
-
+import { createBooking } from "../slice/BookingSlice";
 
 const BookingReview = () => {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
 
   const {
     selectedOnwardFlight,
     selectedReturnFlight,
+    confirmSeat,
   } = useSelector((state) => state.flight);
 
-  const { passengers = [] } = useSelector(
-    (state) => state.booking
-  );
+  const {
+    passengers = [],
+    loading,
+  } = useSelector((state) => state.booking);
 
-  // No flight selected
+  // ==========================================
+  // VALIDATION
+  // ==========================================
+
   if (!selectedOnwardFlight) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
@@ -61,6 +68,80 @@ const BookingReview = () => {
     );
   }
 
+  // ==========================================
+  // CREATE BOOKING
+  // ==========================================
+
+  const handleProceedToPayment = async () => {
+
+    // Passenger validation
+    if (passengers.length === 0) {
+      toast.error("Please add passenger details");
+      return;
+    }
+
+    // Seat validation
+    const onwardSeat = confirmSeat[selectedOnwardFlight.id];
+
+    if (!onwardSeat) {
+      toast.error("Please select a seat for the departure flight");
+      return;
+    }
+
+    let returnSeat = null;
+
+    if (selectedReturnFlight) {
+      returnSeat = confirmSeat[selectedReturnFlight.id];
+
+      if (!returnSeat) {
+        toast.error("Please select a seat for the return flight");
+        return;
+      }
+    }
+
+    // ==========================================
+    // BOOKING REQUEST
+    // ==========================================
+
+    const bookingData = {
+      onwardFlightId: selectedOnwardFlight.id,
+
+      returnFlightId: selectedReturnFlight
+        ? selectedReturnFlight.id
+        : null,
+
+      passengers,
+
+      // Send confirmed seat information
+      onwardSeatNumber:onwardSeat,
+
+      returnSeatNumber:returnSeat
+    };
+
+    console.log("Booking Request:", bookingData);
+
+    try {
+
+      await dispatch(
+        createBooking(bookingData)
+      ).unwrap();
+
+      toast.success(
+        "Booking details saved successfully!"
+      );
+
+      navigate("/payment");
+
+    } catch (error) {
+
+      toast.error(
+        typeof error === "string"
+          ? error
+          : "Booking failed. Please try again."
+      );
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
 
@@ -72,6 +153,7 @@ const BookingReview = () => {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
 
             <div>
+
               <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">
                 Review Booking
               </h1>
@@ -80,6 +162,7 @@ const BookingReview = () => {
                 Check your flight and passenger details
                 before payment
               </p>
+
             </div>
 
             <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 rounded-lg">
@@ -106,10 +189,9 @@ const BookingReview = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-          {/* Left Content */}
+          {/* LEFT */}
           <div className="lg:col-span-2 space-y-6">
 
-            {/* Booking Summary */}
             <BookingSummary
               onwardFlight={selectedOnwardFlight}
               returnFlight={selectedReturnFlight}
@@ -119,18 +201,16 @@ const BookingReview = () => {
             {/* Passenger Details */}
             <section className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
 
-              {/* Section Header */}
               <div className="px-5 sm:px-6 py-5 border-b border-gray-100">
 
                 <div className="flex items-center gap-3">
 
                   <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
-                    <span>
-                      👤
-                    </span>
+                    👤
                   </div>
 
                   <div>
+
                     <h2 className="text-lg sm:text-xl font-bold text-gray-800">
                       Passenger Details
                     </h2>
@@ -138,13 +218,13 @@ const BookingReview = () => {
                     <p className="text-sm text-gray-500">
                       Verify passenger information
                     </p>
+
                   </div>
 
                 </div>
 
               </div>
 
-              {/* Passenger List */}
               <div className="p-5 sm:p-6 space-y-4">
 
                 {passengers.length === 0 ? (
@@ -170,16 +250,18 @@ const BookingReview = () => {
                       "
                     >
 
-                      {/* Passenger Header */}
                       <div className="flex items-center gap-3 mb-4">
 
                         <div className="w-9 h-9 rounded-full bg-purple-100 flex items-center justify-center">
+
                           <span className="text-sm font-bold text-purple-600">
                             {index + 1}
                           </span>
+
                         </div>
 
                         <div>
+
                           <h3 className="font-semibold text-gray-800">
                             Passenger {index + 1}
                           </h3>
@@ -187,53 +269,32 @@ const BookingReview = () => {
                           <p className="text-xs text-gray-500">
                             Passenger information
                           </p>
+
                         </div>
 
                       </div>
 
-                      {/* Details */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
-                        <div>
-                          <p className="text-xs text-gray-400 uppercase tracking-wide">
-                            Full Name
-                          </p>
+                        <Detail
+                          label="Full Name"
+                          value={`${passenger.firstName} ${passenger.lastName}`}
+                        />
 
-                          <p className="text-sm font-medium text-gray-800 mt-1">
-                            {passenger.firstName}{" "}
-                            {passenger.lastName}
-                          </p>
-                        </div>
+                        <Detail
+                          label="Email"
+                          value={passenger.email}
+                        />
 
-                        <div>
-                          <p className="text-xs text-gray-400 uppercase tracking-wide">
-                            Email
-                          </p>
+                        <Detail
+                          label="Phone"
+                          value={passenger.phone}
+                        />
 
-                          <p className="text-sm font-medium text-gray-800 mt-1 break-all">
-                            {passenger.email}
-                          </p>
-                        </div>
-
-                        <div>
-                          <p className="text-xs text-gray-400 uppercase tracking-wide">
-                            Phone
-                          </p>
-
-                          <p className="text-sm font-medium text-gray-800 mt-1">
-                            {passenger.phone}
-                          </p>
-                        </div>
-
-                        <div>
-                          <p className="text-xs text-gray-400 uppercase tracking-wide">
-                            Date of Birth
-                          </p>
-
-                          <p className="text-sm font-medium text-gray-800 mt-1">
-                            {passenger.dateOfBirth}
-                          </p>
-                        </div>
+                        <Detail
+                          label="Date of Birth"
+                          value={passenger.dateOfBirth}
+                        />
 
                       </div>
 
@@ -248,7 +309,7 @@ const BookingReview = () => {
 
           </div>
 
-          {/* Right Side */}
+          {/* RIGHT */}
           <aside className="lg:col-span-1">
 
             <div className="lg:sticky lg:top-6">
@@ -273,6 +334,7 @@ const BookingReview = () => {
                     </div>
 
                     <div>
+
                       <p className="text-sm font-semibold text-gray-800">
                         Flight Selected
                       </p>
@@ -280,6 +342,7 @@ const BookingReview = () => {
                       <p className="text-xs text-gray-500">
                         Completed
                       </p>
+
                     </div>
 
                   </div>
@@ -291,6 +354,7 @@ const BookingReview = () => {
                     </div>
 
                     <div>
+
                       <p className="text-sm font-semibold text-gray-800">
                         Passenger Details
                       </p>
@@ -298,6 +362,7 @@ const BookingReview = () => {
                       <p className="text-xs text-gray-500">
                         Completed
                       </p>
+
                     </div>
 
                   </div>
@@ -309,6 +374,7 @@ const BookingReview = () => {
                     </div>
 
                     <div>
+
                       <p className="text-sm font-semibold text-gray-800">
                         Payment
                       </p>
@@ -316,42 +382,42 @@ const BookingReview = () => {
                       <p className="text-xs text-gray-500">
                         Next step
                       </p>
+
                     </div>
 
                   </div>
 
                 </div>
 
-                {/* Buttons */}
+                {/* BUTTONS */}
                 <div className="mt-6 space-y-3">
 
                   <button
                     type="button"
-                    onClick={() =>
-                      navigate("/payment")
-                    }
+                    disabled={loading}
+                    onClick={handleProceedToPayment}
                     className="
                       w-full
                       h-12
                       bg-blue-600
                       hover:bg-blue-700
-                      active:bg-blue-800
+                      disabled:bg-gray-400
+                      disabled:cursor-not-allowed
                       text-white
                       font-semibold
                       rounded-xl
                       shadow-md
-                      hover:shadow-lg
                       transition
                     "
                   >
-                    Proceed to Payment →
+                    {loading
+                      ? "Saving Booking..."
+                      : "Proceed to Payment →"}
                   </button>
 
                   <button
                     type="button"
-                    onClick={() =>
-                      navigate("/passengers")
-                    }
+                    onClick={() => navigate("/passengers")}
                     className="
                       w-full
                       h-11
@@ -369,7 +435,6 @@ const BookingReview = () => {
 
                 </div>
 
-                {/* Security */}
                 <div className="mt-5 pt-5 border-t border-gray-100">
 
                   <div className="flex gap-3">
@@ -397,8 +462,28 @@ const BookingReview = () => {
         </div>
 
       </main>
+
     </div>
   );
 };
+
+
+// ==========================================
+// DETAIL COMPONENT
+// ==========================================
+
+const Detail = ({ label, value }) => (
+  <div>
+
+    <p className="text-xs text-gray-400 uppercase tracking-wide">
+      {label}
+    </p>
+
+    <p className="text-sm font-medium text-gray-800 mt-1 break-all">
+      {value || "N/A"}
+    </p>
+
+  </div>
+);
 
 export default BookingReview;
