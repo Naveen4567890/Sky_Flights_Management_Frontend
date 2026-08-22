@@ -1,4 +1,4 @@
-import React, {  useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
@@ -11,9 +11,7 @@ import {
 
 import FlightCard from "./FlightCard";
 
-
 const FlightResults = () => {
-
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
@@ -22,14 +20,22 @@ const FlightResults = () => {
     returnFlights,
     selectedOnwardFlight,
     selectedReturnFlight,
-    seatUpdates,
+    confirmSeat,
   } = useSelector((state) => state.flight);
 
+  const [sortBy, setSortBy] = useState("default");
+
   // ==========================================
-  // SORT STATE
+  // GET CONFIRMED SEAT
   // ==========================================
 
-  const [sortBy, setSortBy] = useState("default");
+  const onwardConfirmedSeat = selectedOnwardFlight
+    ? confirmSeat?.[selectedOnwardFlight.id] || null
+    : null;
+
+  const returnConfirmedSeat = selectedReturnFlight
+    ? confirmSeat?.[selectedReturnFlight.id] || null
+    : null;
 
   // ==========================================
   // CONVERT DURATION TO MINUTES
@@ -40,9 +46,8 @@ const FlightResults = () => {
       return 0;
     }
 
-    // Example: "2h 30m"
-    const hoursMatch = duration.match(/(\d+)\s*h/i);
-    const minutesMatch = duration.match(/(\d+)\s*m/i);
+    const hoursMatch = String(duration).match(/(\d+)\s*h/i);
+    const minutesMatch = String(duration).match(/(\d+)\s*m/i);
 
     if (hoursMatch || minutesMatch) {
       const hours = hoursMatch
@@ -56,16 +61,14 @@ const FlightResults = () => {
       return hours * 60 + minutes;
     }
 
-    // Example: "02:30"
-    if (duration.includes(":")) {
-      const [hours, minutes] = duration
+    if (String(duration).includes(":")) {
+      const [hours, minutes] = String(duration)
         .split(":")
         .map(Number);
 
       return hours * 60 + minutes;
     }
 
-    // If backend returns number
     const numericDuration = Number(duration);
 
     return Number.isNaN(numericDuration)
@@ -74,18 +77,13 @@ const FlightResults = () => {
   };
 
   // ==========================================
-  // CONVERT DEPARTURE TIME TO MINUTES
+  // CONVERT TIME TO MINUTES
   // ==========================================
 
   const getTimeInMinutes = (time) => {
     if (!time) {
       return 0;
     }
-
-    // Handles:
-    // "10:30"
-    // "10:30:00"
-    // "2026-08-17T10:30:00"
 
     const timePart = String(time).includes("T")
       ? String(time).split("T")[1]
@@ -109,10 +107,6 @@ const FlightResults = () => {
     const sorted = [...flights];
 
     switch (sortBy) {
-      // ========================================
-      // PRICE
-      // ========================================
-
       case "priceLow":
         return sorted.sort(
           (a, b) =>
@@ -126,10 +120,6 @@ const FlightResults = () => {
             Number(b.price || 0) -
             Number(a.price || 0)
         );
-
-      // ========================================
-      // DURATION
-      // ========================================
 
       case "durationShort":
         return sorted.sort(
@@ -145,10 +135,6 @@ const FlightResults = () => {
             getDurationInMinutes(a.duration)
         );
 
-      // ========================================
-      // DEPARTURE TIME
-      // ========================================
-
       case "departureEarly":
         return sorted.sort(
           (a, b) =>
@@ -162,10 +148,6 @@ const FlightResults = () => {
             getTimeInMinutes(b.departureTime) -
             getTimeInMinutes(a.departureTime)
         );
-
-      // ========================================
-      // AIRLINE
-      // ========================================
 
       case "airlineAZ":
         return sorted.sort((a, b) =>
@@ -181,26 +163,18 @@ const FlightResults = () => {
           )
         );
 
-      // ========================================
-      // DEFAULT
-      // ========================================
-
       default:
         return sorted;
     }
   };
 
   // ==========================================
-  // SORTED DEPARTURE FLIGHTS
+  // SORTED FLIGHTS
   // ==========================================
 
   const sortedOnwardFlights = useMemo(() => {
     return sortFlights(onwardFlights);
   }, [onwardFlights, sortBy]);
-
-  // ==========================================
-  // SORTED RETURN FLIGHTS
-  // ==========================================
 
   const sortedReturnFlights = useMemo(() => {
     return sortFlights(returnFlights);
@@ -228,27 +202,68 @@ const FlightResults = () => {
 
   const handleSearchFlights = () => {
     dispatch(clearSelectedFlights());
-
     navigate("/");
   };
 
   // ==========================================
-  // CONTINUE
+  // CONTINUE TO PASSENGERS
   // ==========================================
 
   const handleContinue = () => {
+    // ------------------------------------------
+    // Departure flight must be selected
+    // ------------------------------------------
+
     if (!selectedOnwardFlight) {
-      toast.error("Please select departure flight");
+      toast.error("Please select a departure flight");
       return;
     }
+
+    // ------------------------------------------
+    // Departure seat must be confirmed
+    // ------------------------------------------
+
+    if (!onwardConfirmedSeat) {
+      toast.error(
+        "Please select and confirm a seat for the departure flight"
+      );
+
+      return;
+    }
+
+    // ------------------------------------------
+    // Return flight must be selected
+    // ------------------------------------------
 
     if (
       returnFlights.length > 0 &&
       !selectedReturnFlight
     ) {
-      toast.error("Please select return flight");
+      toast.error("Please select a return flight");
       return;
     }
+
+    // ------------------------------------------
+    // Return seat must be confirmed
+    // ------------------------------------------
+
+    if (
+      returnFlights.length > 0 &&
+      selectedReturnFlight &&
+      !returnConfirmedSeat
+    ) {
+      toast.error(
+        "Please select and confirm a seat for the return flight"
+      );
+
+      return;
+    }
+
+    // ------------------------------------------
+    // Everything is ready
+    // ------------------------------------------
+
+    toast.success("Flights and seats confirmed");
 
     navigate("/passengers");
   };
@@ -273,9 +288,7 @@ const FlightResults = () => {
         overflow-hidden
       "
     >
-      {/* ========================================== */}
-      {/* BACKGROUND DECORATIONS */}
-      {/* ========================================== */}
+      {/* BACKGROUND */}
 
       <div
         className="
@@ -319,7 +332,7 @@ const FlightResults = () => {
         "
       />
 
-      {/* ================= HEADER ================= */}
+      {/* HEADER */}
 
       <header
         className="
@@ -365,11 +378,9 @@ const FlightResults = () => {
               </h1>
 
               <p className="text-sm text-gray-500 mt-1">
-                Choose the best flight for your journey
+                Choose your flights and seats
               </p>
             </div>
-
-            {/* Flight Counts */}
 
             <div className="flex flex-wrap gap-2">
               <span
@@ -406,7 +417,7 @@ const FlightResults = () => {
         </div>
       </header>
 
-      {/* ================= MAIN ================= */}
+      {/* MAIN */}
 
       <main
         className="
@@ -421,10 +432,6 @@ const FlightResults = () => {
           sm:py-8
         "
       >
-        {/* ==================================================
-            NO FLIGHTS AVAILABLE
-        ================================================== */}
-
         {noFlightsAvailable ? (
           <section
             className="
@@ -513,9 +520,7 @@ const FlightResults = () => {
           </section>
         ) : (
           <>
-            {/* ==================================================
-                SORT BAR
-            ================================================== */}
+            {/* SORT */}
 
             <section
               className="
@@ -564,13 +569,10 @@ const FlightResults = () => {
                   </p>
                 </div>
 
-                {/* SORT SELECT */}
-
                 <div
                   className="
                     w-full
                     sm:w-auto
-                    min-w-0
                     sm:min-w-65
                   "
                 >
@@ -661,9 +663,7 @@ const FlightResults = () => {
               </div>
             </section>
 
-            {/* ==================================================
-                DEPARTURE
-            ================================================== */}
+            {/* DEPARTURE */}
 
             {sortedOnwardFlights.length > 0 && (
               <section className="mb-10">
@@ -687,9 +687,7 @@ const FlightResults = () => {
                       justify-center
                     "
                   >
-                    <span className="text-lg">
-                      ✈️
-                    </span>
+                    ✈️
                   </div>
 
                   <div>
@@ -705,7 +703,7 @@ const FlightResults = () => {
                     </h2>
 
                     <p className="text-sm text-gray-500">
-                      Select your departure flight
+                      Select your departure flight and seat
                     </p>
                   </div>
                 </div>
@@ -724,10 +722,10 @@ const FlightResults = () => {
                         key={flight.id || index}
                         flight={flight}
                         selected={
-                          selectedOnwardFlight?.id === flight.id
+                          selectedOnwardFlight?.id ===
+                          flight.id
                         }
                         onSelect={handleOnwardSelect}
-                        seatUpdates={seatUpdates[flight.id] || {}}
                       />
                     )
                   )}
@@ -735,9 +733,7 @@ const FlightResults = () => {
               </section>
             )}
 
-            {/* ==================================================
-                RETURN
-            ================================================== */}
+            {/* RETURN */}
 
             {sortedReturnFlights.length > 0 && (
               <section className="mb-10">
@@ -761,9 +757,7 @@ const FlightResults = () => {
                       justify-center
                     "
                   >
-                    <span className="text-lg">
-                      ↩️
-                    </span>
+                    ↩️
                   </div>
 
                   <div>
@@ -779,7 +773,7 @@ const FlightResults = () => {
                     </h2>
 
                     <p className="text-sm text-gray-500">
-                      Select your return flight
+                      Select your return flight and seat
                     </p>
                   </div>
                 </div>
@@ -795,13 +789,13 @@ const FlightResults = () => {
                   {sortedReturnFlights.map(
                     (flight, index) => (
                       <FlightCard
-                          key={flight.id || index}
-                          flight={flight}
-                          selected={
-                            selectedReturnFlight?.id === flight.id
-                          }
-                          onSelect={handleReturnSelect}
-                          seatUpdates={seatUpdates[flight.id] || {}}
+                        key={flight.id || index}
+                        flight={flight}
+                        selected={
+                          selectedReturnFlight?.id ===
+                          flight.id
+                        }
+                        onSelect={handleReturnSelect}
                       />
                     )
                   )}
@@ -809,9 +803,9 @@ const FlightResults = () => {
               </section>
             )}
 
-            {/* ==================================================
-                SELECTED SUMMARY
-            ================================================== */}
+            {/* ========================================== */}
+            {/* SELECTION SUMMARY */}
+            {/* ========================================== */}
 
             {(selectedOnwardFlight ||
               selectedReturnFlight) && (
@@ -893,6 +887,41 @@ const FlightResults = () => {
                           {" • "}
                           {selectedOnwardFlight.flightNumber}
                         </p>
+
+                        <div className="mt-3">
+                          {onwardConfirmedSeat ? (
+                            <span
+                              className="
+                                inline-flex
+                                px-3
+                                py-1.5
+                                rounded-lg
+                                bg-green-100
+                                text-green-700
+                                text-sm
+                                font-semibold
+                              "
+                            >
+                              💺 Seat confirmed:{" "}
+                              {onwardConfirmedSeat}
+                            </span>
+                          ) : (
+                            <span
+                              className="
+                                inline-flex
+                                px-3
+                                py-1.5
+                                rounded-lg
+                                bg-yellow-100
+                                text-yellow-700
+                                text-sm
+                                font-semibold
+                              "
+                            >
+                              ⚠️ Seat not confirmed
+                            </span>
+                          )}
+                        </div>
                       </>
                     ) : (
                       <p
@@ -956,6 +985,41 @@ const FlightResults = () => {
                             {" • "}
                             {selectedReturnFlight.flightNumber}
                           </p>
+
+                          <div className="mt-3">
+                            {returnConfirmedSeat ? (
+                              <span
+                                className="
+                                  inline-flex
+                                  px-3
+                                  py-1.5
+                                  rounded-lg
+                                  bg-green-100
+                                  text-green-700
+                                  text-sm
+                                  font-semibold
+                                "
+                              >
+                                💺 Seat confirmed:{" "}
+                                {returnConfirmedSeat}
+                              </span>
+                            ) : (
+                              <span
+                                className="
+                                  inline-flex
+                                  px-3
+                                  py-1.5
+                                  rounded-lg
+                                  bg-yellow-100
+                                  text-yellow-700
+                                  text-sm
+                                  font-semibold
+                                "
+                              >
+                                ⚠️ Seat not confirmed
+                              </span>
+                            )}
+                          </div>
                         </>
                       ) : (
                         <p
@@ -974,9 +1038,9 @@ const FlightResults = () => {
               </section>
             )}
 
-            {/* ==================================================
-                CONTINUE
-            ================================================== */}
+            {/* ========================================== */}
+            {/* CONTINUE */}
+            {/* ========================================== */}
 
             <section
               className="
@@ -1004,8 +1068,8 @@ const FlightResults = () => {
                   </h3>
 
                   <p className="text-sm text-gray-500 mt-1">
-                    Select your flights and continue to
-                    passenger details.
+                    Confirm your flight seats before continuing
+                    to passenger details.
                   </p>
                 </div>
 
@@ -1031,7 +1095,7 @@ const FlightResults = () => {
                     hover:shadow-lg
                   "
                 >
-                  Continue →
+                  Continue to Passengers →
                 </button>
               </div>
             </section>

@@ -11,6 +11,8 @@ const PassengerForm = ({
 
   const [emailVerified, setEmailVerified] = useState(false);
 
+
+
   const handleChange = (e) => {
     const updatedPassenger = {
       ...passenger,

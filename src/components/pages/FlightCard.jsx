@@ -9,7 +9,7 @@ import {
     updateSeat,
     confirmFlightSeat,
     removeConfirmedSeat,
-} from "../slice/flightSlice";
+} from "../slice/FlightSlice";
 
 const FlightCard = ({
     flight,
@@ -318,43 +318,46 @@ const FlightCard = ({
     // CANCEL CONFIRMED SEAT
     // ==========================================
 
-    const handleRemoveConfirmedSeat = () => {
+ const handleRemoveConfirmedSeat = () => {
 
-        if (!confirmedSeat) {
-            return;
-        }
+    if (!confirmedSeat) {
+        return;
+    }
 
+    const seatToRemove = confirmedSeat;
 
-        // Remove from Redux
-        dispatch(
-            removeConfirmedSeat(flight.id)
-        );
+    // Remove confirmed seat
+    dispatch(
+        removeConfirmedSeat({
+            flightId: flight.id,
+        })
+    );
 
+    // Make seat available
+    dispatch(
+        updateSeat({
+            flightId: flight.id,
+            seatNumber: seatToRemove,
+            status: "AVAILABLE",
+        })
+    );
 
-        // Update WebSocket
-        sendSeatUpdate(
-            flight.id,
-            confirmedSeat,
-            "AVAILABLE"
-        );
+    // Notify other clients
+    sendSeatUpdate(
+        flight.id,
+        seatToRemove,
+        "AVAILABLE"
+    );
 
+    // Clear temporary local selection
+    setSelectedSeat(null);
 
-        // Update Redux seat status
-        dispatch(
-            updateSeat({
-                flightId: flight.id,
-                seatNumber: confirmedSeat,
-                status: "AVAILABLE",
-            })
-        );
-
-
-        console.log(
-            "Confirmed seat removed:",
-            flight.id,
-            confirmedSeat
-        );
-    };
+    console.log(
+        "Confirmed seat removed:",
+        flight.id,
+        seatToRemove
+    );
+};
 
 
     // ==========================================
@@ -1244,27 +1247,6 @@ const FlightCard = ({
                             </div>
 
 
-                            <div
-                                className="
-                                    flex
-                                    items-center
-                                    gap-1.5
-                                "
-                            >
-
-                                <span
-                                    className="
-                                        w-4
-                                        h-4
-                                        rounded
-                                        bg-orange-400
-                                    "
-                                />
-
-                                Live Locked
-
-                            </div>
-
 
                             <div
                                 className="
@@ -1531,156 +1513,139 @@ const FlightCard = ({
                         </div>
 
 
-                        {/* ========================================== */}
-                        {/* CONFIRMED SEAT */}
-                        {/* ========================================== */}
+{/* ========================================== */}
+{/* CONFIRMED SEAT */}
+{/* ========================================== */}
 
-                        {confirmedSeat && (
+{confirmedSeat && (
+    <div
+        className="
+            mt-5
+            flex
+            flex-col
+            sm:flex-row
+            items-start
+            sm:items-center
+            justify-between
+            gap-3
+            p-4
+            rounded-lg
+            bg-green-50
+            border
+            border-green-200
+        "
+    >
+        <div>
+            <p
+                className="
+                    text-xs
+                    text-green-600
+                "
+            >
+                Confirmed seat
+            </p>
 
-                            <div
-                                className="
-                                    mt-5
-                                    flex
-                                    flex-col
-                                    sm:flex-row
-                                    items-start
-                                    sm:items-center
-                                    justify-between
-                                    gap-3
-                                    p-4
-                                    rounded-lg
-                                    bg-green-50
-                                    border
-                                    border-green-200
-                                "
-                            >
+            <p
+                className="
+                    text-base
+                    font-bold
+                    text-green-700
+                    mt-0.5
+                "
+            >
+                {confirmedSeat}
+            </p>
+        </div>
 
-                                <div>
-
-                                    <p
-                                        className="
-                                            text-xs
-                                            text-green-600
-                                        "
-                                    >
-                                        Confirmed seat
-                                    </p>
-
-                                    <p
-                                        className="
-                                            text-base
-                                            font-bold
-                                            text-green-700
-                                            mt-0.5
-                                        "
-                                    >
-                                        {confirmedSeat}
-                                    </p>
-
-                                </div>
-
-
-                                <button
-                                    type="button"
-                                    onClick={
-                                        handleRemoveConfirmedSeat
-                                    }
-                                    className="
-                                        w-full
-                                        sm:w-auto
-                                        px-5
-                                        h-10
-                                        bg-red-600
-                                        hover:bg-red-700
-                                        text-white
-                                        rounded-lg
-                                        text-sm
-                                        font-semibold
-                                        transition
-                                    "
-                                >
-                                    Remove Seat
-                                </button>
-
-                            </div>
-
-                        )}
+        <button
+            type="button"
+            onClick={handleRemoveConfirmedSeat}
+            className="
+                w-full
+                sm:w-auto
+                px-5
+                h-10
+                bg-red-600
+                hover:bg-red-700
+                text-white
+                rounded-lg
+                text-sm
+                font-semibold
+                transition
+            "
+        >
+            Remove Seat
+        </button>
+    </div>
+)}
 
 
-                        {/* ========================================== */}
-                        {/* SELECTED SEAT */}
-                        {/* ========================================== */}
+{/* ========================================== */}
+{/* TEMPORARY SELECTED SEAT */}
+{/* ========================================== */}
 
-                        {selectedSeat && (
+{selectedSeat && !confirmedSeat && (
+    <div
+        className="
+            mt-5
+            flex
+            flex-col
+            sm:flex-row
+            items-start
+            sm:items-center
+            justify-between
+            gap-3
+            p-4
+            rounded-lg
+            bg-blue-50
+            border
+            border-blue-100
+        "
+    >
+        <div>
+            <p
+                className="
+                    text-xs
+                    text-blue-500
+                "
+            >
+                Selected seat
+            </p>
 
-                            <div
-                                className="
-                                    mt-5
-                                    flex
-                                    flex-col
-                                    sm:flex-row
-                                    items-start
-                                    sm:items-center
-                                    justify-between
-                                    gap-3
-                                    p-4
-                                    rounded-lg
-                                    bg-blue-50
-                                    border
-                                    border-blue-100
-                                "
-                            >
+            <p
+                className="
+                    text-base
+                    font-bold
+                    text-blue-700
+                    mt-0.5
+                "
+            >
+                {selectedSeat}
+            </p>
+        </div>
 
-                                <div>
+        <button
+            type="button"
+            onClick={handleConfirmSeat}
+            className="
+                w-full
+                sm:w-auto
+                px-5
+                h-10
+                bg-blue-600
+                hover:bg-blue-700
+                text-white
+                rounded-lg
+                text-sm
+                font-semibold
+                transition
+            "
+        >
+            Confirm Seat
+        </button>
+    </div>
+)}
 
-                                    <p
-                                        className="
-                                            text-xs
-                                            text-blue-500
-                                        "
-                                    >
-                                        Selected seat
-                                    </p>
-
-                                    <p
-                                        className="
-                                            text-base
-                                            font-bold
-                                            text-blue-700
-                                            mt-0.5
-                                        "
-                                    >
-                                        {selectedSeat}
-                                    </p>
-
-                                </div>
-
-
-                                <button
-                                    type="button"
-                                    onClick={
-                                        handleConfirmSeat
-                                    }
-                                    className="
-                                        w-full
-                                        sm:w-auto
-                                        px-5
-                                        h-10
-                                        bg-blue-600
-                                        hover:bg-blue-700
-                                        text-white
-                                        rounded-lg
-                                        text-sm
-                                        font-semibold
-                                        transition
-                                    "
-                                >
-                                    Confirm Seat
-                                </button>
-
-                            </div>
-
-                        )}
 
                     </div>
 

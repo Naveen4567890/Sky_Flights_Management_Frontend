@@ -5,23 +5,16 @@ import {
 
 import API from "../api/api";
 
-
 // ==========================================
 // CREATE PAYMENT ORDER
 // ==========================================
 
 export const createPaymentOrder =
     createAsyncThunk(
-
         "payment/createOrder",
 
-        async (
-            paymentData,
-            thunkAPI
-        ) => {
-
+        async (paymentData, thunkAPI) => {
             try {
-
                 const response =
                     await API.post(
                         "/payment/create-order",
@@ -40,21 +33,15 @@ export const createPaymentOrder =
         }
     );
 
-
 // ==========================================
 // VERIFY PAYMENT
 // ==========================================
 
 export const verifyPayment =
     createAsyncThunk(
-
         "payment/verify",
 
-        async (
-            paymentData,
-            thunkAPI
-        ) => {
-
+        async (paymentData, thunkAPI) => {
             try {
 
                 const response =
@@ -75,6 +62,9 @@ export const verifyPayment =
         }
     );
 
+// ==========================================
+// INITIAL STATE
+// ==========================================
 
 const initialState = {
 
@@ -93,6 +83,9 @@ const initialState = {
     success: false,
 };
 
+// ==========================================
+// SLICE
+// ==========================================
 
 const paymentSlice =
     createSlice({
@@ -103,15 +96,15 @@ const paymentSlice =
 
         reducers: {
 
-            resetPayment: (
-                state
-            ) => {
+            resetPayment: (state) => {
 
                 state.orderId = null;
 
                 state.paymentId = null;
 
                 state.amount = 0;
+
+                state.currency = "INR";
 
                 state.loading = false;
 
@@ -121,14 +114,14 @@ const paymentSlice =
             },
         },
 
-
-        extraReducers: (
-            builder
-        ) => {
+        extraReducers: (builder) => {
 
             builder
 
+                // ======================================
                 // CREATE ORDER
+                // ======================================
+
                 .addCase(
                     createPaymentOrder.pending,
                     (state) => {
@@ -141,10 +134,7 @@ const paymentSlice =
 
                 .addCase(
                     createPaymentOrder.fulfilled,
-                    (
-                        state,
-                        action
-                    ) => {
+                    (state, action) => {
 
                         state.loading = false;
 
@@ -155,16 +145,14 @@ const paymentSlice =
                             action.payload.amount;
 
                         state.currency =
-                            action.payload.currency;
+                            action.payload.currency ||
+                            "INR";
                     }
                 )
 
                 .addCase(
                     createPaymentOrder.rejected,
-                    (
-                        state,
-                        action
-                    ) => {
+                    (state, action) => {
 
                         state.loading = false;
 
@@ -173,8 +161,10 @@ const paymentSlice =
                     }
                 )
 
-
+                // ======================================
                 // VERIFY PAYMENT
+                // ======================================
+
                 .addCase(
                     verifyPayment.pending,
                     (state) => {
@@ -187,24 +177,25 @@ const paymentSlice =
 
                 .addCase(
                     verifyPayment.fulfilled,
-                    (
-                        state
-                    ) => {
+                    (state, action) => {
 
                         state.loading = false;
 
                         state.success = true;
+
+                        state.paymentId =
+                            action.payload?.paymentId ||
+                            null;
                     }
                 )
 
                 .addCase(
                     verifyPayment.rejected,
-                    (
-                        state,
-                        action
-                    ) => {
+                    (state, action) => {
 
                         state.loading = false;
+
+                        state.success = false;
 
                         state.error =
                             action.payload;
@@ -213,10 +204,8 @@ const paymentSlice =
         },
     });
 
-
 export const {
     resetPayment,
 } = paymentSlice.actions;
-
 
 export default paymentSlice.reducer;

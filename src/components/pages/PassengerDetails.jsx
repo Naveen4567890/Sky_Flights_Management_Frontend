@@ -8,13 +8,8 @@ import toast from "react-hot-toast";
 import PassengerForm from "./PassengerForm";
 
 const PassengerDetails = () => {
-
   const dispatch = useDispatch();
   const navigate = useNavigate();
-
-  // ==========================================
-  // EMAIL VERIFICATION STATUS
-  // ==========================================
 
   const [emailVerified, setEmailVerified] = useState({});
 
@@ -22,6 +17,7 @@ const PassengerDetails = () => {
     searchParams,
     selectedOnwardFlight,
     selectedReturnFlight,
+    confirmSeat,
   } = useSelector((state) => state.flight);
 
   const {
@@ -33,25 +29,36 @@ const PassengerDetails = () => {
   // ==========================================
 
   const passengerCount = Number(
-    searchParams?.passengers || 1
+    searchParams?.passengers ||
+    searchParams?.totalTravelers ||
+    1
   );
 
   // ==========================================
-  // PASSENGERS
+  // INITIAL PASSENGERS
   // ==========================================
+
+  const createInitialPassenger = () => ({
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    dateOfBirth: "",
+
+    // Seat information
+    onwardSeatNumber: "",
+    returnSeatNumber: "",
+
+    // Cabin
+    cabin: selectedOnwardFlight?.cabin || "ECONOMY",
+  });
 
   const [passengers, setPassengersState] = useState(
     storedPassengers.length
       ? storedPassengers
       : Array.from(
           { length: passengerCount },
-          () => ({
-            firstName: "",
-            lastName: "",
-            email: "",
-            phone: "",
-            dateOfBirth: "",
-          })
+          createInitialPassenger
         )
   );
 
@@ -60,7 +67,6 @@ const PassengerDetails = () => {
   // ==========================================
 
   const handleChange = (index, passenger) => {
-
     const updated = [...passengers];
 
     updated[index] = passenger;
@@ -73,7 +79,6 @@ const PassengerDetails = () => {
   // ==========================================
 
   const handleEmailVerified = (index, verified) => {
-
     setEmailVerified((previous) => ({
       ...previous,
       [index]: verified,
@@ -85,15 +90,13 @@ const PassengerDetails = () => {
   // ==========================================
 
   const handleSubmit = (e) => {
-
     e.preventDefault();
 
     // ========================================
-    // CHECK REQUIRED PASSENGER DETAILS
+    // PASSENGER VALIDATION
     // ========================================
 
     for (let i = 0; i < passengers.length; i++) {
-
       const passenger = passengers[i];
 
       if (
@@ -103,7 +106,6 @@ const PassengerDetails = () => {
         !passenger.phone ||
         !passenger.dateOfBirth
       ) {
-
         toast.error(
           `Please complete Passenger ${i + 1} details`
         );
@@ -113,7 +115,7 @@ const PassengerDetails = () => {
     }
 
     // ========================================
-    // CHECK EMAIL VERIFICATION
+    // EMAIL VERIFICATION
     // ========================================
 
     const unverifiedPassengerIndex =
@@ -122,40 +124,95 @@ const PassengerDetails = () => {
       );
 
     if (unverifiedPassengerIndex !== -1) {
-
       toast.error(
         `Please verify email for Passenger ${
           unverifiedPassengerIndex + 1
         }`
       );
 
-      // Stay on current page
       return;
     }
 
     // ========================================
-    // SAVE PASSENGERS
+    // CHECK ONWARD SEATS
     // ========================================
 
-    dispatch(setPassengers(passengers));
+    const onwardSeat =
+      confirmSeat?.[selectedOnwardFlight?.id];
+
+    if (!onwardSeat) {
+      toast.error(
+        "Please select a seat for the departure flight"
+      );
+
+      navigate("/flights");
+      return;
+    }
 
     // ========================================
-    // GO TO REVIEW PAGE
+    // CHECK RETURN SEAT
+    // ========================================
+
+    let returnSeat = "";
+
+    if (selectedReturnFlight) {
+      returnSeat =
+        confirmSeat?.[selectedReturnFlight.id];
+
+      if (!returnSeat) {
+        toast.error(
+          "Please select a seat for the return flight"
+        );
+
+        navigate("/flights");
+        return;
+      }
+    }
+
+    // ========================================
+    // IMPORTANT
+    //
+    // If one seat was selected for each passenger,
+    // they should already exist in passenger objects.
+    //
+    // Do NOT put seats at top-level.
+    // ========================================
+
+    const updatedPassengers = passengers.map(
+      (passenger) => ({
+        ...passenger,
+
+        cabin:
+          passenger.cabin ||
+          selectedOnwardFlight?.cabin ||
+          "ECONOMY",
+      })
+    );
+
+    // ========================================
+    // SAVE TO REDUX
+    // ========================================
+
+    dispatch(
+      setPassengers(updatedPassengers)
+    );
+
+    // ========================================
+    // GO TO REVIEW
     // ========================================
 
     toast.success(
-      "All passenger emails verified!"
+      "All passenger details verified!"
     );
 
     navigate("/booking-review");
   };
 
   // ==========================================
-  // NO FLIGHT SELECTED
+  // NO FLIGHT
   // ==========================================
 
   if (!selectedOnwardFlight) {
-
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
 
@@ -234,7 +291,6 @@ const PassengerDetails = () => {
           ">
 
             <div>
-
               <h1 className="
                 text-2xl sm:text-3xl
                 font-bold text-gray-800
@@ -248,7 +304,6 @@ const PassengerDetails = () => {
               ">
                 Enter the details of all passengers travelling
               </p>
-
             </div>
 
             <div className="
@@ -400,7 +455,6 @@ const PassengerDetails = () => {
           <div className="space-y-5">
 
             {passengers.map((passenger, index) => (
-
               <PassengerForm
                 key={index}
                 passenger={passenger}
@@ -408,7 +462,6 @@ const PassengerDetails = () => {
                 onChange={handleChange}
                 onEmailVerified={handleEmailVerified}
               />
-
             ))}
 
           </div>

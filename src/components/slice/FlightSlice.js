@@ -131,15 +131,22 @@ const flightSlice = createSlice({
         // flightId → seatNumber
         // ======================================
 
-        confirmFlightSeat: (state, action) => {
-
+       confirmFlightSeat: (state, action) => {
             const {
                 flightId,
                 seatNumber,
             } = action.payload;
 
-            state.confirmSeat[flightId] =
-                seatNumber;
+            if (!state.confirmSeat[flightId]) {
+                state.confirmSeat[flightId] = [];
+            }
+
+            // Don't add duplicate seats
+            if (
+                !state.confirmSeat[flightId].includes(seatNumber)
+            ) {
+                state.confirmSeat[flightId].push(seatNumber);
+            }
         },
 
 
@@ -148,10 +155,25 @@ const flightSlice = createSlice({
         // ======================================
 
         removeConfirmedSeat: (state, action) => {
+            const {
+                flightId,
+                seatNumber,
+            } = action.payload;
 
-            const flightId = action.payload;
+            if (!state.confirmSeat[flightId]) {
+                return;
+            }
 
-            delete state.confirmSeat[flightId];
+            state.confirmSeat[flightId] =
+                state.confirmSeat[flightId].filter(
+                (seat) => seat !== seatNumber
+                );
+
+            if (
+                state.confirmSeat[flightId].length === 0
+            ) {
+                delete state.confirmSeat[flightId];
+            }
         },
 
 

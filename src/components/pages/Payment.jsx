@@ -104,9 +104,9 @@ const Payment = () => {
 
         try {
 
-            // ----------------------------------
+            // ==========================================
             // VALIDATION
-            // ----------------------------------
+            // ==========================================
 
             if (!selectedOnwardFlight) {
 
@@ -120,7 +120,10 @@ const Payment = () => {
             }
 
 
-            if (!passengers.length) {
+            if (
+                !passengers ||
+                passengers.length === 0
+            ) {
 
                 toast.error(
                     "Please enter passenger details"
@@ -132,9 +135,28 @@ const Payment = () => {
             }
 
 
-            // ----------------------------------
-            // CREATE PAYMENT ORDER
-            // ----------------------------------
+            if (!paymentMethod) {
+
+                toast.error(
+                    "Please select a payment method"
+                );
+
+                return;
+            }
+
+
+            // ==========================================
+            // CREATE RAZORPAY ORDER
+            // ==========================================
+
+            console.log(
+                "Creating payment order:",
+                {
+                    amount: total,
+                    paymentMethod,
+                }
+            );
+
 
             const order =
                 await dispatch(
@@ -142,7 +164,8 @@ const Payment = () => {
 
                         amount: total,
 
-                        paymentMethod,
+                        paymentMethod:
+                            paymentMethod,
 
                     })
                 ).unwrap();
@@ -154,20 +177,28 @@ const Payment = () => {
             );
 
 
-            // ----------------------------------
+            if (!order?.orderId) {
+
+                throw new Error(
+                    "Payment order ID was not returned"
+                );
+            }
+
+
+            // ==========================================
             // RAZORPAY OPTIONS
-            // ----------------------------------
+            // ==========================================
 
             const options = {
 
-                key: order.keyId,
+                key:
+                    order.keyId,
 
                 amount:
-                    Number(order.amount) *
-                    100,
+                    Number(order.amount) * 100,
 
                 currency:
-                    order.currency,
+                    order.currency || "INR",
 
                 name:
                     "Flight Booking",
@@ -179,6 +210,42 @@ const Payment = () => {
                     order.orderId,
 
 
+                // ==========================================
+                // PREFILL
+                // ==========================================
+
+                prefill: {
+
+                    name:
+                        `${passengers[0]?.firstName || ""} ${
+                            passengers[0]?.lastName || ""
+                        }`.trim(),
+
+                    email:
+                        passengers[0]?.email || "",
+
+                    contact:
+                        passengers[0]?.phone || "",
+
+                },
+
+
+                // ==========================================
+                // THEME
+                // ==========================================
+
+                theme: {
+
+                    color:
+                        "#2563eb",
+
+                },
+
+
+                // ==========================================
+                // PAYMENT SUCCESS
+                // ==========================================
+
                 handler:
                     async function (
                         response
@@ -187,41 +254,74 @@ const Payment = () => {
                         try {
 
                             console.log(
+                                "===================================="
+                            );
+
+                            console.log(
+                                "RAZORPAY PAYMENT SUCCESS"
+                            );
+
+                            console.log(
                                 "Razorpay response:",
                                 response
                             );
 
+                            console.log(
+                                "===================================="
+                            );
 
-                            // -------------------------
+
+                            // ==========================================
                             // VERIFY PAYMENT
-                            // -------------------------
+                            // ==========================================
+
+                            const verificationData = {
+
+                                orderId:
+                                    response
+                                        .razorpay_order_id,
+
+                                paymentId:
+                                    response
+                                        .razorpay_payment_id,
+
+                                signature:
+                                    response
+                                        .razorpay_signature,
+
+                            };
+
+
+                            console.log(
+                                "Verifying payment:",
+                                verificationData
+                            );
+
 
                             await dispatch(
-                                verifyPayment({
-
-                                    orderId:
-                                        response
-                                            .razorpay_order_id,
-
-                                    paymentId:
-                                        response
-                                            .razorpay_payment_id,
-
-                                    signature:
-                                        response
-                                            .razorpay_signature,
-
-                                })
+                                verifyPayment(
+                                    verificationData
+                                )
                             ).unwrap();
 
 
-                            toast.success(
-                                "Payment successful!"
+                            console.log(
+                                "Payment verification successful"
                             );
 
-                            // -------------------------
+
+                            // ==========================================
                             // CREATE BOOKING
-                            // -------------------------
+                            // ONLY AFTER PAYMENT VERIFICATION
+                            // ==========================================
+
+                            const bookingPassengers =
+                                passengers.map(
+                                    (passenger) => ({
+                                        ...passenger,
+                                    })
+                                );
+
 
                             const bookingData = {
 
@@ -229,29 +329,63 @@ const Payment = () => {
                                     selectedOnwardFlight.id,
 
                                 returnFlightId:
-                                    selectedReturnFlight
-                                        ?.id || null,
+                                    selectedReturnFlight?.id ||
+                                    null,
 
-                                passengers,
+                                passengers:
+                                    bookingPassengers,
 
-                                paymentMethod,
+                                paymentMethod:
+                                    paymentMethod,
 
                                 paymentId:
                                     response
                                         .razorpay_payment_id,
 
+                                totalAmount:
+                                    total,
+
                             };
 
 
-                            await dispatch(
-                                createBooking(
-                                    bookingData
-                                )
-                            ).unwrap();
+                            console.log(
+                                "===================================="
+                            );
 
+                            console.log(
+                                "BOOKING REQUEST:",
+                                JSON.stringify(
+                                    bookingData,
+                                    null,
+                                    2
+                                )
+                            );
+
+                            console.log(
+                                "===================================="
+                            );
+
+
+                            const bookingResult =
+                                await dispatch(
+                                    createBooking(
+                                        bookingData
+                                    )
+                                ).unwrap();
+
+
+                            console.log(
+                                "BOOKING SUCCESS:",
+                                bookingResult
+                            );
+
+
+                            // ==========================================
+                            // SUCCESS
+                            // ==========================================
 
                             toast.success(
-                                "Booking confirmed!"
+                                "Booking confirmed successfully!"
                             );
 
 
@@ -263,48 +397,35 @@ const Payment = () => {
                         } catch (error) {
 
                             console.error(
+                                "Payment verification / booking error:",
                                 error
                             );
 
+
                             toast.error(
-                                error ||
-                                "Payment verification failed"
+
+                                typeof error ===
+                                    "string"
+
+                                    ? error
+
+                                    : error?.message ||
+                                      "Payment verification failed"
+
                             );
+
                         }
+
                     },
 
-
-                prefill: {
-
-                    name:
-                        passengers[0]
-                            ?.firstName || "",
-
-                    email:
-                        passengers[0]
-                            ?.email || "",
-
-                    contact:
-                        passengers[0]
-                            ?.phone || "",
-                },
-
-
-                theme: {
-
-                    color:
-                        "#2563eb",
-                },
             };
 
 
-            // ----------------------------------
-            // OPEN RAZORPAY
-            // ----------------------------------
+            // ==========================================
+            // CHECK RAZORPAY
+            // ==========================================
 
-            if (
-                !window.Razorpay
-            ) {
+            if (!window.Razorpay) {
 
                 toast.error(
                     "Payment gateway failed to load"
@@ -314,27 +435,42 @@ const Payment = () => {
             }
 
 
+            // ==========================================
+            // OPEN RAZORPAY
+            // ==========================================
+
             const razorpay =
                 new window.Razorpay(
                     options
                 );
 
 
+            // ==========================================
+            // PAYMENT FAILED
+            // ==========================================
+
             razorpay.on(
                 "payment.failed",
+
                 function (
                     response
                 ) {
 
                     console.error(
-                        "Payment failed:",
+                        "Razorpay payment failed:",
                         response
                     );
 
 
                     toast.error(
+
+                        response?.error
+                            ?.description ||
+
                         "Payment failed. Please try again."
+
                     );
+
                 }
             );
 
@@ -345,16 +481,25 @@ const Payment = () => {
         } catch (error) {
 
             console.error(
-                "Payment error:",
+                "Payment creation error:",
                 error
             );
 
 
             toast.error(
-                error ||
-                "Unable to start payment"
+
+                typeof error ===
+                    "string"
+
+                    ? error
+
+                    : error?.message ||
+                      "Unable to start payment"
+
             );
+
         }
+
     };
 
 
@@ -369,7 +514,10 @@ const Payment = () => {
             bg-gray-50
         ">
 
-            {/* HEADER */}
+
+            {/* ==========================================
+                HEADER
+            ========================================== */}
 
             <header className="
                 bg-white
@@ -396,6 +544,7 @@ const Payment = () => {
                         Payment
                     </h1>
 
+
                     <p className="
                         text-sm
                         text-gray-500
@@ -409,7 +558,9 @@ const Payment = () => {
             </header>
 
 
-            {/* MAIN */}
+            {/* ==========================================
+                MAIN
+            ========================================== */}
 
             <main className="
                 max-w-6xl
@@ -429,7 +580,9 @@ const Payment = () => {
                 ">
 
 
-                    {/* PAYMENT METHOD */}
+                    {/* ==========================================
+                        PAYMENT METHOD
+                    ========================================== */}
 
                     <section className="
                         lg:col-span-2
@@ -457,7 +610,9 @@ const Payment = () => {
                         ">
 
 
-                            {/* CARD */}
+                            {/* ==========================================
+                                CARD
+                            ========================================== */}
 
                             <button
                                 type="button"
@@ -476,12 +631,14 @@ const Payment = () => {
                                     ${
                                         paymentMethod ===
                                         "CARD"
+
                                             ? `
                                                 border-blue-500
                                                 bg-blue-50
                                                 ring-2
                                                 ring-blue-100
                                             `
+
                                             : `
                                                 border-gray-200
                                                 hover:border-blue-300
@@ -502,6 +659,7 @@ const Payment = () => {
                                         💳
                                     </span>
 
+
                                     <div className="
                                         flex-1
                                     ">
@@ -513,6 +671,7 @@ const Payment = () => {
                                             Credit / Debit Card
                                         </p>
 
+
                                         <p className="
                                             text-sm
                                             text-gray-500
@@ -523,11 +682,16 @@ const Payment = () => {
 
                                     </div>
 
+
                                     <span>
+
                                         {paymentMethod ===
                                         "CARD"
+
                                             ? "●"
+
                                             : "○"}
+
                                     </span>
 
                                 </div>
@@ -535,7 +699,9 @@ const Payment = () => {
                             </button>
 
 
-                            {/* UPI */}
+                            {/* ==========================================
+                                UPI
+                            ========================================== */}
 
                             <button
                                 type="button"
@@ -554,10 +720,14 @@ const Payment = () => {
                                     ${
                                         paymentMethod ===
                                         "UPI"
+
                                             ? `
                                                 border-blue-500
                                                 bg-blue-50
+                                                ring-2
+                                                ring-blue-100
                                             `
+
                                             : `
                                                 border-gray-200
                                                 hover:border-blue-300
@@ -578,6 +748,7 @@ const Payment = () => {
                                         📱
                                     </span>
 
+
                                     <div className="
                                         flex-1
                                     ">
@@ -589,6 +760,7 @@ const Payment = () => {
                                             UPI
                                         </p>
 
+
                                         <p className="
                                             text-sm
                                             text-gray-500
@@ -599,11 +771,16 @@ const Payment = () => {
 
                                     </div>
 
+
                                     <span>
+
                                         {paymentMethod ===
                                         "UPI"
+
                                             ? "●"
+
                                             : "○"}
+
                                     </span>
 
                                 </div>
@@ -611,7 +788,9 @@ const Payment = () => {
                             </button>
 
 
-                            {/* NET BANKING */}
+                            {/* ==========================================
+                                NET BANKING
+                            ========================================== */}
 
                             <button
                                 type="button"
@@ -630,10 +809,14 @@ const Payment = () => {
                                     ${
                                         paymentMethod ===
                                         "NET_BANKING"
+
                                             ? `
                                                 border-blue-500
                                                 bg-blue-50
+                                                ring-2
+                                                ring-blue-100
                                             `
+
                                             : `
                                                 border-gray-200
                                                 hover:border-blue-300
@@ -654,6 +837,7 @@ const Payment = () => {
                                         🏦
                                     </span>
 
+
                                     <div className="
                                         flex-1
                                     ">
@@ -665,6 +849,7 @@ const Payment = () => {
                                             Net Banking
                                         </p>
 
+
                                         <p className="
                                             text-sm
                                             text-gray-500
@@ -674,11 +859,16 @@ const Payment = () => {
 
                                     </div>
 
+
                                     <span>
+
                                         {paymentMethod ===
                                         "NET_BANKING"
+
                                             ? "●"
+
                                             : "○"}
+
                                     </span>
 
                                 </div>
@@ -690,7 +880,9 @@ const Payment = () => {
                     </section>
 
 
-                    {/* SUMMARY */}
+                    {/* ==========================================
+                        FARE SUMMARY
+                    ========================================== */}
 
                     <aside>
 
@@ -719,6 +911,9 @@ const Payment = () => {
                                 space-y-4
                             ">
 
+
+                                {/* DEPARTURE */}
+
                                 <div className="
                                     flex
                                     justify-between
@@ -734,22 +929,28 @@ const Payment = () => {
                                             Departure
                                         </p>
 
+
                                         <p className="
                                             text-sm
                                             font-semibold
                                         ">
+
                                             {
                                                 selectedOnwardFlight
-                                                    .source
+                                                    ?.source
                                             }
+
                                             {" → "}
+
                                             {
                                                 selectedOnwardFlight
-                                                    .destination
+                                                    ?.destination
                                             }
+
                                         </p>
 
                                     </div>
+
 
                                     <span>
                                         ₹{onwardPrice}
@@ -758,11 +959,14 @@ const Payment = () => {
                                 </div>
 
 
+                                {/* RETURN */}
+
                                 {selectedReturnFlight && (
 
                                     <div className="
                                         flex
                                         justify-between
+                                        gap-3
                                     ">
 
                                         <div>
@@ -774,22 +978,28 @@ const Payment = () => {
                                                 Return
                                             </p>
 
+
                                             <p className="
                                                 text-sm
                                                 font-semibold
                                             ">
+
                                                 {
                                                     selectedReturnFlight
-                                                        .source
+                                                        ?.source
                                                 }
+
                                                 {" → "}
+
                                                 {
                                                     selectedReturnFlight
-                                                        .destination
+                                                        ?.destination
                                                 }
+
                                             </p>
 
                                         </div>
+
 
                                         <span>
                                             ₹{returnPrice}
@@ -799,6 +1009,8 @@ const Payment = () => {
 
                                 )}
 
+
+                                {/* PASSENGERS */}
 
                                 <div className="
                                     border-t
@@ -817,6 +1029,7 @@ const Payment = () => {
                                             Passengers
                                         </span>
 
+
                                         <span className="
                                             font-semibold
                                         ">
@@ -827,6 +1040,33 @@ const Payment = () => {
 
                                 </div>
 
+
+                                {/* PAYMENT METHOD */}
+
+                                <div className="
+                                    flex
+                                    justify-between
+                                    text-sm
+                                ">
+
+                                    <span className="
+                                        text-gray-500
+                                    ">
+                                        Payment Method
+                                    </span>
+
+
+                                    <span className="
+                                        font-semibold
+                                        text-gray-700
+                                    ">
+                                        {paymentMethod}
+                                    </span>
+
+                                </div>
+
+
+                                {/* TOTAL */}
 
                                 <div className="
                                     border-t
@@ -846,6 +1086,7 @@ const Payment = () => {
                                             Total
                                         </span>
 
+
                                         <span className="
                                             text-2xl
                                             font-bold
@@ -858,6 +1099,8 @@ const Payment = () => {
 
                                 </div>
 
+
+                                {/* PAY BUTTON */}
 
                                 <button
                                     type="button"
@@ -873,6 +1116,7 @@ const Payment = () => {
                                         bg-blue-600
                                         hover:bg-blue-700
                                         disabled:bg-gray-400
+                                        disabled:cursor-not-allowed
                                         text-white
                                         font-semibold
                                         rounded-xl
@@ -881,11 +1125,17 @@ const Payment = () => {
                                 >
 
                                     {loading
+
                                         ? "Processing..."
-                                        : `Pay ₹${total} & Book`}
+
+                                        : `Pay ₹${total} & Book`
+
+                                    }
 
                                 </button>
 
+
+                                {/* BACK */}
 
                                 <button
                                     type="button"
@@ -903,11 +1153,14 @@ const Payment = () => {
                                         text-gray-700
                                         font-medium
                                         rounded-xl
+                                        transition
                                     "
                                 >
                                     ← Back to Review
                                 </button>
 
+
+                                {/* SECURITY */}
 
                                 <p className="
                                     text-xs
