@@ -1,5 +1,3 @@
-
-
 import React, { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
@@ -16,12 +14,27 @@ const FlightCard = ({
     onSelect,
     selected = false,
 }) => {
-
     const dispatch = useDispatch();
 
     const [showDetails, setShowDetails] = useState(false);
     const [showSeats, setShowSeats] = useState(false);
-    const [selectedSeat, setSelectedSeat] = useState(null);
+    const [selectedSeat, setSelectedSeat] = useState([]);
+
+    // ==========================================
+    // SEARCH PARAMS
+    // ==========================================
+
+    const searchParams = useSelector(
+        (state) => state.flight?.searchParams
+    );
+
+    const travelers =
+        searchParams?.travelers || {};
+
+    const requiredSeats =
+        Number(travelers.ADULT || 0) +
+        Number(travelers.CHILD || 0) +
+        Number(travelers.INFANT || 0);
 
 
     // ==========================================
@@ -35,7 +48,7 @@ const FlightCard = ({
 
     const confirmedSeat = useSelector(
         (state) =>
-            state.flight?.confirmSeat?.[flight.id] || null
+            state.flight?.confirmSeat?.[flight.id] || []
     );
 
 
@@ -46,7 +59,6 @@ const FlightCard = ({
     const cabinType = flight.cabin || "Economy";
 
     const cabinConfig = {
-
         First: {
             rows: 5,
             columns: ["A", "B", "C"],
@@ -91,10 +103,9 @@ const FlightCard = ({
         },
     };
 
-
     const currentCabin =
         cabinConfig[cabinType] ||
-        cabinConfig.Premium_Economy;
+        cabinConfig.Economy;
 
     const seatRows = currentCabin.rows;
     const seatColumns = currentCabin.columns;
@@ -105,7 +116,6 @@ const FlightCard = ({
     // ==========================================
 
     const getWebSocketSeatStatus = (seat) => {
-
         return seatUpdates?.[seat] || null;
     };
 
@@ -115,7 +125,6 @@ const FlightCard = ({
     // ==========================================
 
     const isSeatOccupied = (seat) => {
-
         const status = getWebSocketSeatStatus(seat);
 
         return (
@@ -130,12 +139,11 @@ const FlightCard = ({
     // ==========================================
 
     const getSeatStatus = (seat) => {
-
         const status =
             getWebSocketSeatStatus(seat);
 
         // Confirmed seat from Redux
-        if (confirmedSeat === seat) {
+        if (confirmedSeat.includes(seat)) {
             return "BOOKED";
         }
 
@@ -154,9 +162,7 @@ const FlightCard = ({
             return;
         }
 
-
-        // Don't allow another user's
-        // SELECTED seat
+        // Don't allow another user's SELECTED seat
         const status =
             getWebSocketSeatStatus(seat);
 
@@ -165,30 +171,54 @@ const FlightCard = ({
         }
 
 
-        // Release previous local selection
-        if (
-            selectedSeat &&
-            selectedSeat !== seat
-        ) {
+        // ======================================
+        // DESELECT CURRENTLY SELECTED SEAT
+        // ======================================
 
-            sendSeatUpdate(
-                flight.id,
-                selectedSeat,
-                "AVAILABLE"
-            );
+        if (selectedSeat.includes(seat)) {
+
+            const updatedSeats =
+                selectedSeat.filter(
+                    (item) => item !== seat
+                );
+
+            setSelectedSeat(updatedSeats);
 
             dispatch(
                 updateSeat({
                     flightId: flight.id,
-                    seatNumber: selectedSeat,
+                    seatNumber: seat,
                     status: "AVAILABLE",
                 })
             );
+
+            sendSeatUpdate(
+                flight.id,
+                seat,
+                "AVAILABLE"
+            );
+
+            return;
         }
 
 
-        // Select new seat
-        setSelectedSeat(seat);
+        // ======================================
+        // DON'T SELECT MORE SEATS THAN TRAVELLERS
+        // ======================================
+
+        if (selectedSeat.length >= requiredSeats) {
+            return;
+        }
+
+
+        // ======================================
+        // SELECT NEW SEAT
+        // ======================================
+
+        setSelectedSeat((prev) => [
+            ...prev,
+            seat,
+        ]);
 
 
         // Update Redux
@@ -222,25 +252,25 @@ const FlightCard = ({
 
         if (!newState) {
 
-            // Release local selected seat
-            if (selectedSeat) {
+            // Release local selected seats
+            selectedSeat.forEach((seat) => {
 
                 sendSeatUpdate(
                     flight.id,
-                    selectedSeat,
+                    seat,
                     "AVAILABLE"
                 );
 
                 dispatch(
                     updateSeat({
                         flightId: flight.id,
-                        seatNumber: selectedSeat,
+                        seatNumber: seat,
                         status: "AVAILABLE",
                     })
                 );
-            }
+            });
 
-            setSelectedSeat(null);
+            setSelectedSeat([]);
         }
     };
 
@@ -250,7 +280,6 @@ const FlightCard = ({
     // ==========================================
 
     const toggleDetails = () => {
-
         setShowDetails(!showDetails);
     };
 
@@ -261,42 +290,50 @@ const FlightCard = ({
 
     const handleConfirmSeat = () => {
 
-        if (!selectedSeat) {
+        if (selectedSeat.length === 0) {
             return;
         }
 
 
-
-        dispatch(
-            confirmFlightSeat({
-                flightId: flight.id,
-                seatNumber: selectedSeat,
-            })
-        );
-
-
         // ======================================
-        // UPDATE REDUX SEAT STATUS
+        // MAKE SURE ALL TRAVELLER SEATS SELECTED
         // ======================================
 
-        dispatch(
-            updateSeat({
-                flightId: flight.id,
-                seatNumber: selectedSeat,
-                status: "BOOKED",
-            })
-        );
+        if (
+            selectedSeat.length !== requiredSeats
+        ) {
+            return;
+        }
 
 
-        // ======================================
-        // SEND BOOKED STATUS THROUGH WEBSOCKET
-        // ======================================
+        selectedSeat.forEach((seat) => {
 
-        sendSeatUpdate(
-            flight.id,
-            selectedSeat,
-            "BOOKED"
-        );
+            // Confirm seat
+            dispatch(
+                confirmFlightSeat({
+                    flightId: flight.id,
+                    seatNumber: seat,
+                })
+            );
+
+
+            // Update Redux seat status
+            dispatch(
+                updateSeat({
+                    flightId: flight.id,
+                    seatNumber: seat,
+                    status: "BOOKED",
+                })
+            );
+
+
+            // Send booked status through WebSocket
+            sendSeatUpdate(
+                flight.id,
+                seat,
+                "BOOKED"
+            );
+        });
 
 
         console.log(
@@ -306,8 +343,8 @@ const FlightCard = ({
         );
 
 
-        // Clear temporary local selection
-        setSelectedSeat(null);
+        // Clear temporary selection
+        setSelectedSeat([]);
 
         // Close seat map
         setShowSeats(false);
@@ -318,46 +355,48 @@ const FlightCard = ({
     // CANCEL CONFIRMED SEAT
     // ==========================================
 
- const handleRemoveConfirmedSeat = () => {
-
-    if (!confirmedSeat) {
-        return;
-    }
-
-    const seatToRemove = confirmedSeat;
-
-    // Remove confirmed seat
-    dispatch(
-        removeConfirmedSeat({
-            flightId: flight.id,
-        })
-    );
-
-    // Make seat available
-    dispatch(
-        updateSeat({
-            flightId: flight.id,
-            seatNumber: seatToRemove,
-            status: "AVAILABLE",
-        })
-    );
-
-    // Notify other clients
-    sendSeatUpdate(
-        flight.id,
-        seatToRemove,
-        "AVAILABLE"
-    );
-
-    // Clear temporary local selection
-    setSelectedSeat(null);
-
-    console.log(
-        "Confirmed seat removed:",
-        flight.id,
+    const handleRemoveConfirmedSeat = (
         seatToRemove
-    );
-};
+    ) => {
+
+        if (!seatToRemove) {
+            return;
+        }
+
+
+        // Remove confirmed seat
+        dispatch(
+            removeConfirmedSeat({
+                flightId: flight.id,
+                seatNumber: seatToRemove,
+            })
+        );
+
+
+        // Make seat available
+        dispatch(
+            updateSeat({
+                flightId: flight.id,
+                seatNumber: seatToRemove,
+                status: "AVAILABLE",
+            })
+        );
+
+
+        // Notify other clients
+        sendSeatUpdate(
+            flight.id,
+            seatToRemove,
+            "AVAILABLE"
+        );
+
+
+        console.log(
+            "Confirmed seat removed:",
+            flight.id,
+            seatToRemove
+        );
+    };
 
 
     // ==========================================
@@ -365,18 +404,20 @@ const FlightCard = ({
     // ==========================================
 
     return (
-
         <div
             className={`
                 w-full
+                max-w-full
                 bg-white
-                rounded-2xl
+                rounded-xl
+                sm:rounded-2xl
                 border
-                p-4
+                p-3
                 sm:p-5
                 lg:p-6
                 transition-all
                 duration-200
+                overflow-hidden
 
                 ${
                     selected
@@ -403,12 +444,13 @@ const FlightCard = ({
                 className="
                     flex
                     flex-col
-                    xs:flex-row
                     sm:flex-row
-                    items-start
+                    sm:items-center
                     justify-between
-                    gap-3
-                    mb-5
+                    gap-2
+                    sm:gap-3
+                    mb-4
+                    sm:mb-5
                 "
             >
 
@@ -432,6 +474,7 @@ const FlightCard = ({
                             sm:text-sm
                             text-gray-500
                             mt-1
+                            truncate
                         "
                     >
                         Flight No: {flight.flightNumber}
@@ -442,6 +485,8 @@ const FlightCard = ({
 
                 <span
                     className="
+                        self-start
+                        sm:self-auto
                         shrink-0
                         px-2.5
                         py-1
@@ -465,9 +510,9 @@ const FlightCard = ({
             <div
                 className="
                     grid
-                    grid-cols-[1fr_auto_1fr]
+                    grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]
                     items-center
-                    gap-2
+                    gap-1
                     sm:gap-4
                 "
             >
@@ -484,6 +529,7 @@ const FlightCard = ({
                             lg:text-3xl
                             font-bold
                             text-gray-800
+                            truncate
                         "
                     >
                         {flight.departureTime}
@@ -493,7 +539,7 @@ const FlightCard = ({
                         className="
                             block
                             mt-1
-                            text-sm
+                            text-xs
                             sm:text-base
                             font-medium
                             text-gray-600
@@ -506,7 +552,8 @@ const FlightCard = ({
                     <span
                         className="
                             block
-                            text-xs
+                            text-[10px]
+                            sm:text-xs
                             text-gray-400
                             mt-1
                         "
@@ -525,14 +572,14 @@ const FlightCard = ({
                         flex-col
                         items-center
                         justify-center
-                        min-w-17.5
-                        sm:min-w-27.5
+                        min-w-12
+                        sm:min-w-28
                     "
                 >
 
                     <span
                         className="
-                            text-[10px]
+                            text-[9px]
                             sm:text-xs
                             text-gray-400
                             mb-1
@@ -565,7 +612,7 @@ const FlightCard = ({
                             className="
                                 mx-1
                                 sm:mx-2
-                                text-lg
+                                text-base
                                 sm:text-2xl
                                 text-blue-500
                             "
@@ -606,6 +653,7 @@ const FlightCard = ({
                             lg:text-3xl
                             font-bold
                             text-gray-800
+                            truncate
                         "
                     >
                         {flight.arrivalTime}
@@ -615,7 +663,7 @@ const FlightCard = ({
                         className="
                             block
                             mt-1
-                            text-sm
+                            text-xs
                             sm:text-base
                             font-medium
                             text-gray-600
@@ -628,7 +676,8 @@ const FlightCard = ({
                     <span
                         className="
                             block
-                            text-xs
+                            text-[10px]
+                            sm:text-xs
                             text-gray-400
                             mt-1
                         "
@@ -649,7 +698,8 @@ const FlightCard = ({
                 className="
                     border-t
                     border-gray-100
-                    my-5
+                    my-4
+                    sm:my-5
                 "
             />
 
@@ -670,12 +720,10 @@ const FlightCard = ({
                     className="
                         flex
                         flex-col
-                        xs:flex-row
                         sm:flex-row
-                        items-start
                         sm:items-center
                         justify-between
-                        gap-4
+                        gap-3
                     "
                 >
 
@@ -684,6 +732,7 @@ const FlightCard = ({
                     <div
                         className="
                             flex
+                            flex-wrap
                             items-center
                             gap-2
                         "
@@ -698,44 +747,29 @@ const FlightCard = ({
                             Seat
                         </span>
 
-                        {confirmedSeat ? (
-
-                            <span
-                                className="
-                                    px-2.5
-                                    py-1
-                                    bg-blue-50
-                                    text-blue-600
-                                    rounded-md
-                                    text-sm
-                                    font-semibold
-                                "
-                            >
-                                {confirmedSeat}
-                            </span>
-
-                        ) : (
-
-                            <span
-                                className="
-                                    px-2.5
-                                    py-1
-                                    bg-gray-50
-                                    text-gray-500
-                                    rounded-md
-                                    text-sm
-                                "
-                            >
-                                Not Selected
-                            </span>
-                        )}
+                        <span
+                            className="
+                                px-2.5
+                                py-1
+                                bg-blue-50
+                                text-blue-600
+                                rounded-md
+                                text-sm
+                                font-semibold
+                                break-words
+                            "
+                        >
+                            {confirmedSeat.length > 0
+                                ? confirmedSeat.join(", ")
+                                : "Not Selected"}
+                        </span>
 
                     </div>
 
 
                     {/* Price */}
 
-                    <div className="sm:text-right">
+                    <div className="text-left sm:text-right">
 
                         <span
                             className="
@@ -771,7 +805,7 @@ const FlightCard = ({
                         grid
                         grid-cols-1
                         sm:grid-cols-3
-                        gap-2.5
+                        gap-2
                         sm:gap-3
                     "
                 >
@@ -783,16 +817,18 @@ const FlightCard = ({
                         onClick={toggleDetails}
                         className="
                             w-full
-                            h-10
+                            min-h-10
                             sm:h-11
                             rounded-lg
                             border
                             border-gray-300
                             hover:bg-gray-50
+                            active:bg-gray-100
                             text-gray-700
                             font-medium
                             text-sm
                             transition
+                            px-3
                         "
                     >
                         {showDetails
@@ -808,17 +844,19 @@ const FlightCard = ({
                         onClick={toggleSeats}
                         className="
                             w-full
-                            h-10
+                            min-h-10
                             sm:h-11
                             rounded-lg
                             border
                             border-blue-300
                             bg-blue-50
                             hover:bg-blue-100
+                            active:bg-blue-200
                             text-blue-600
                             font-medium
                             text-sm
                             transition
+                            px-3
                         "
                     >
                         💺{" "}
@@ -837,7 +875,7 @@ const FlightCard = ({
                         }
                         className={`
                             w-full
-                            h-10
+                            min-h-10
                             sm:h-11
                             rounded-lg
                             font-semibold
@@ -845,17 +883,20 @@ const FlightCard = ({
                             sm:text-base
                             transition-all
                             duration-200
+                            px-3
 
                             ${
                                 selected
                                     ? `
                                         bg-red-600
                                         hover:bg-red-700
+                                        active:bg-red-800
                                         text-white
                                     `
                                     : `
                                         bg-blue-600
                                         hover:bg-blue-700
+                                        active:bg-blue-800
                                         text-white
                                     `
                             }
@@ -879,8 +920,10 @@ const FlightCard = ({
 
                 <div
                     className="
-                        mt-6
-                        pt-5
+                        mt-5
+                        sm:mt-6
+                        pt-4
+                        sm:pt-5
                         border-t
                         border-gray-200
                     "
@@ -892,7 +935,7 @@ const FlightCard = ({
                             bg-gray-50
                             border
                             border-gray-200
-                            p-4
+                            p-3
                             sm:p-5
                         "
                     >
@@ -900,10 +943,13 @@ const FlightCard = ({
                         <div
                             className="
                                 flex
-                                items-center
-                                justify-between
+                                flex-col
+                                sm:flex-row
+                                sm:items-center
+                                sm:justify-between
                                 gap-3
-                                mb-5
+                                mb-4
+                                sm:mb-5
                             "
                         >
 
@@ -935,8 +981,8 @@ const FlightCard = ({
 
                             <span
                                 className="
-                                    hidden
-                                    sm:block
+                                    self-start
+                                    sm:self-auto
                                     px-2.5
                                     py-1
                                     rounded-md
@@ -957,10 +1003,10 @@ const FlightCard = ({
                             className="
                                 grid
                                 grid-cols-1
-                                xs:grid-cols-2
                                 sm:grid-cols-2
                                 lg:grid-cols-3
-                                gap-4
+                                gap-3
+                                sm:gap-4
                             "
                         >
 
@@ -995,11 +1041,12 @@ const FlightCard = ({
                             <DetailItem
                                 label="Confirmed Seat"
                                 value={
-                                    confirmedSeat ||
-                                    "Not Selected"
+                                    confirmedSeat.length > 0
+                                        ? confirmedSeat.join(", ")
+                                        : "Not Selected"
                                 }
                                 green={
-                                    !!confirmedSeat
+                                    confirmedSeat.length > 0
                                 }
                             />
 
@@ -1038,8 +1085,10 @@ const FlightCard = ({
 
                 <div
                     className="
-                        mt-6
-                        pt-5
+                        mt-5
+                        sm:mt-6
+                        pt-4
+                        sm:pt-5
                         border-t
                         border-gray-200
                     "
@@ -1051,7 +1100,7 @@ const FlightCard = ({
                             bg-gray-50
                             border
                             border-gray-200
-                            p-4
+                            p-3
                             sm:p-5
                         "
                     >
@@ -1062,50 +1111,52 @@ const FlightCard = ({
                             className="
                                 flex
                                 flex-col
-                                sm:flex-row
-                                sm:items-center
-                                sm:justify-between
-                                gap-3
+                                gap-4
                                 mb-5
                             "
                         >
 
-                            <div>
-
-                                <h4
-                                    className="
-                                        font-bold
-                                        text-gray-800
-                                        text-base
-                                        sm:text-lg
-                                    "
-                                >
-                                    💺 Select Seat
-                                </h4>
-
-                                <p
-                                    className="
-                                        text-xs
-                                        text-gray-500
-                                        mt-1
-                                    "
-                                >
-                                    Choose an available seat
-                                </p>
-
-                            </div>
-
-
                             <div
                                 className="
                                     flex
-                                    gap-2
-                                    flex-wrap
+                                    flex-col
+                                    sm:flex-row
+                                    sm:items-center
+                                    sm:justify-between
+                                    gap-3
                                 "
                             >
 
+                                <div>
+
+                                    <h4
+                                        className="
+                                            font-bold
+                                            text-gray-800
+                                            text-base
+                                            sm:text-lg
+                                        "
+                                    >
+                                        💺 Select Seat
+                                    </h4>
+
+                                    <p
+                                        className="
+                                            text-xs
+                                            text-gray-500
+                                            mt-1
+                                        "
+                                    >
+                                        Choose an available seat
+                                    </p>
+
+                                </div>
+
+
                                 <span
                                     className="
+                                        self-start
+                                        sm:self-auto
                                         px-3
                                         py-1.5
                                         rounded-lg
@@ -1118,60 +1169,182 @@ const FlightCard = ({
                                     🟢 Live
                                 </span>
 
-
-                                {confirmedSeat && (
-
-                                    <span
-                                        className="
-                                            px-3
-                                            py-1.5
-                                            rounded-lg
-                                            bg-green-100
-                                            text-green-700
-                                            text-sm
-                                            font-semibold
-                                        "
-                                    >
-                                        Confirmed:{" "}
-                                        {confirmedSeat}
-                                    </span>
-
-                                )}
+                            </div>
 
 
-                                {selectedSeat && (
+                            {/* Traveller Status */}
 
-                                    <span
-                                        className="
-                                            self-start
-                                            sm:self-auto
-                                            px-3
-                                            py-1.5
-                                            rounded-lg
-                                            bg-blue-100
-                                            text-blue-600
-                                            text-sm
-                                            font-semibold
-                                        "
-                                    >
-                                        Seat{" "}
-                                        {selectedSeat}
-                                    </span>
+                            <div
+                                className="
+                                    flex
+                                    flex-wrap
+                                    gap-2
+                                "
+                            >
 
-                                )}
+                                <span
+                                    className="
+                                        px-2.5
+                                        sm:px-3
+                                        py-1.5
+                                        rounded-lg
+                                        bg-gray-100
+                                        text-gray-700
+                                        text-xs
+                                        font-semibold
+                                    "
+                                >
+                                    👥 Travellers:{" "}
+                                    {requiredSeats}
+                                </span>
+
+                                <span
+                                    className="
+                                        px-2.5
+                                        sm:px-3
+                                        py-1.5
+                                        rounded-lg
+                                        bg-blue-100
+                                        text-blue-700
+                                        text-xs
+                                        font-semibold
+                                    "
+                                >
+                                    💺 Selected:{" "}
+                                    {selectedSeat.length} /{" "}
+                                    {requiredSeats}
+                                </span>
+
+                                <span
+                                    className="
+                                        px-2.5
+                                        sm:px-3
+                                        py-1.5
+                                        rounded-lg
+                                        bg-green-100
+                                        text-green-700
+                                        text-xs
+                                        font-semibold
+                                    "
+                                >
+                                    ✓ Confirmed:{" "}
+                                    {confirmedSeat.length} /{" "}
+                                    {requiredSeats}
+                                </span>
 
                             </div>
 
                         </div>
 
 
-                        {/* Legend */}
+                        {/* ========================================== */}
+                        {/* SELECTED / CONFIRMED STATUS */}
+                        {/* ========================================== */}
+
+                        {(confirmedSeat.length > 0 ||
+                            selectedSeat.length > 0) && (
+
+                            <div
+                                className="
+                                    mb-5
+                                    flex
+                                    flex-col
+                                    gap-2
+                                "
+                            >
+
+                                {confirmedSeat.length > 0 && (
+                                    <div
+                                        className="
+                                            flex
+                                            flex-wrap
+                                            items-center
+                                            gap-2
+                                            p-3
+                                            rounded-lg
+                                            bg-green-50
+                                            border
+                                            border-green-100
+                                        "
+                                    >
+
+                                        <span
+                                            className="
+                                                text-xs
+                                                text-green-700
+                                                font-semibold
+                                            "
+                                        >
+                                            Confirmed:
+                                        </span>
+
+                                        <span
+                                            className="
+                                                text-sm
+                                                font-bold
+                                                text-green-700
+                                                break-words
+                                            "
+                                        >
+                                            {confirmedSeat.join(", ")}
+                                        </span>
+
+                                    </div>
+                                )}
+
+
+                                {selectedSeat.length > 0 && (
+                                    <div
+                                        className="
+                                            flex
+                                            flex-wrap
+                                            items-center
+                                            gap-2
+                                            p-3
+                                            rounded-lg
+                                            bg-blue-50
+                                            border
+                                            border-blue-100
+                                        "
+                                    >
+
+                                        <span
+                                            className="
+                                                text-xs
+                                                text-blue-700
+                                                font-semibold
+                                            "
+                                        >
+                                            Selected:
+                                        </span>
+
+                                        <span
+                                            className="
+                                                text-sm
+                                                font-bold
+                                                text-blue-700
+                                                break-words
+                                            "
+                                        >
+                                            {selectedSeat.join(", ")}
+                                        </span>
+
+                                    </div>
+                                )}
+
+                            </div>
+                        )}
+
+
+                        {/* ========================================== */}
+                        {/* LEGEND */}
+                        {/* ========================================== */}
 
                         <div
                             className="
                                 flex
                                 flex-wrap
-                                gap-x-5
+                                gap-x-4
                                 gap-y-2
                                 mb-5
                                 text-xs
@@ -1179,95 +1352,30 @@ const FlightCard = ({
                             "
                         >
 
-                            <div
-                                className="
-                                    flex
-                                    items-center
-                                    gap-1.5
-                                "
-                            >
+                            <LegendItem
+                                className="bg-white border border-gray-300"
+                                label="Available"
+                            />
 
-                                <span
-                                    className="
-                                        w-4
-                                        h-4
-                                        rounded
-                                        bg-white
-                                        border
-                                        border-gray-300
-                                    "
-                                />
+                            <LegendItem
+                                className="bg-gray-300"
+                                label="Occupied"
+                            />
 
-                                Available
+                            <LegendItem
+                                className="bg-blue-600"
+                                label="Selected"
+                            />
 
-                            </div>
+                            <LegendItem
+                                className="bg-green-600"
+                                label="Confirmed"
+                            />
 
-
-                            <div
-                                className="
-                                    flex
-                                    items-center
-                                    gap-1.5
-                                "
-                            >
-
-                                <span
-                                    className="
-                                        w-4
-                                        h-4
-                                        rounded
-                                        bg-gray-300
-                                    "
-                                />
-
-                                Occupied
-
-                            </div>
-
-
-                            <div
-                                className="
-                                    flex
-                                    items-center
-                                    gap-1.5
-                                "
-                            >
-
-                                <span
-                                    className="
-                                        w-4
-                                        h-4
-                                        rounded
-                                        bg-blue-600
-                                    "
-                                />
-
-                                Selected
-
-                            </div>
-
-
-
-                            <div
-                                className="
-                                    flex
-                                    items-center
-                                    gap-1.5
-                                "
-                            >
-
-                                <span
-                                    className="
-                                        w-4
-                                        h-4
-                                        rounded
-                                        bg-green-600
-                                    "
-                                />
-
-                                Confirmed
-
-                            </div>
+                            <LegendItem
+                                className="bg-orange-400"
+                                label="Locked"
+                            />
 
                         </div>
 
@@ -1280,13 +1388,17 @@ const FlightCard = ({
                             className="
                                 w-full
                                 overflow-x-auto
-                                pb-2
+                                overflow-y-hidden
+                                pb-3
+                                overscroll-x-contain
                             "
                         >
 
                             <div
                                 className="
-                                    min-w-[320px]
+                                    w-full
+                                    min-w-[300px]
+                                    sm:min-w-[340px]
                                     max-w-md
                                     mx-auto
                                 "
@@ -1300,6 +1412,7 @@ const FlightCard = ({
                                         mb-4
                                         text-xs
                                         text-gray-400
+                                        font-medium
                                     "
                                 >
                                     ✈️ FRONT / COCKPIT
@@ -1312,7 +1425,8 @@ const FlightCard = ({
                                     className="
                                         grid
                                         grid-cols-8
-                                        gap-2
+                                        gap-1.5
+                                        sm:gap-2
                                         mb-2
                                     "
                                 >
@@ -1326,7 +1440,8 @@ const FlightCard = ({
                                                 key={column}
                                                 className="
                                                     text-center
-                                                    text-xs
+                                                    text-[10px]
+                                                    sm:text-xs
                                                     font-semibold
                                                     text-gray-400
                                                 "
@@ -1344,7 +1459,8 @@ const FlightCard = ({
 
                                 <div
                                     className="
-                                        space-y-2
+                                        space-y-1.5
+                                        sm:space-y-2
                                     "
                                 >
 
@@ -1364,7 +1480,8 @@ const FlightCard = ({
                                                     className="
                                                         grid
                                                         grid-cols-8
-                                                        gap-2
+                                                        gap-1.5
+                                                        sm:gap-2
                                                         items-center
                                                     "
                                                 >
@@ -1373,7 +1490,8 @@ const FlightCard = ({
 
                                                     <span
                                                         className="
-                                                            text-xs
+                                                            text-[10px]
+                                                            sm:text-xs
                                                             text-gray-400
                                                             text-center
                                                         "
@@ -1402,13 +1520,15 @@ const FlightCard = ({
 
 
                                                             const selectedSeatNow =
-                                                                selectedSeat ===
-                                                                seat;
+                                                                selectedSeat.includes(
+                                                                    seat
+                                                                );
 
 
                                                             const confirmedSeatNow =
-                                                                confirmedSeat ===
-                                                                seat;
+                                                                confirmedSeat.includes(
+                                                                    seat
+                                                                );
 
 
                                                             const liveLocked =
@@ -1443,18 +1563,22 @@ const FlightCard = ({
                                                                             ? `Seat ${seat} is occupied`
                                                                             : liveLocked
                                                                             ? `Seat ${seat} is temporarily locked`
+                                                                            : selectedSeat.length >= requiredSeats
+                                                                            ? "Maximum seats selected"
                                                                             : `Select seat ${seat}`
                                                                     }
 
                                                                     className={`
+                                                                        w-full
                                                                         h-8
                                                                         sm:h-9
                                                                         rounded-md
-                                                                        text-[10px]
+                                                                        text-[9px]
                                                                         sm:text-xs
                                                                         font-semibold
                                                                         transition-all
                                                                         duration-150
+                                                                        select-none
 
                                                                         ${
                                                                             confirmedSeatNow
@@ -1490,6 +1614,7 @@ const FlightCard = ({
                                                                                     hover:border-blue-500
                                                                                     hover:text-blue-600
                                                                                     hover:bg-blue-50
+                                                                                    active:bg-blue-100
                                                                                 `
                                                                         }
                                                                     `}
@@ -1513,144 +1638,263 @@ const FlightCard = ({
                         </div>
 
 
-{/* ========================================== */}
-{/* CONFIRMED SEAT */}
-{/* ========================================== */}
+                        {/* ========================================== */}
+                        {/* CONFIRMED SEAT */}
+                        {/* ========================================== */}
 
-{confirmedSeat && (
-    <div
-        className="
-            mt-5
-            flex
-            flex-col
-            sm:flex-row
-            items-start
-            sm:items-center
-            justify-between
-            gap-3
-            p-4
-            rounded-lg
-            bg-green-50
-            border
-            border-green-200
-        "
-    >
-        <div>
-            <p
-                className="
-                    text-xs
-                    text-green-600
-                "
-            >
-                Confirmed seat
-            </p>
+                        {confirmedSeat.length > 0 && (
 
-            <p
-                className="
-                    text-base
-                    font-bold
-                    text-green-700
-                    mt-0.5
-                "
-            >
-                {confirmedSeat}
-            </p>
-        </div>
+                            <div
+                                className="
+                                    mt-5
+                                    p-3
+                                    sm:p-4
+                                    rounded-lg
+                                    bg-green-50
+                                    border
+                                    border-green-200
+                                "
+                            >
 
-        <button
-            type="button"
-            onClick={handleRemoveConfirmedSeat}
-            className="
-                w-full
-                sm:w-auto
-                px-5
-                h-10
-                bg-red-600
-                hover:bg-red-700
-                text-white
-                rounded-lg
-                text-sm
-                font-semibold
-                transition
-            "
-        >
-            Remove Seat
-        </button>
-    </div>
-)}
+                                <div className="mb-3">
+
+                                    <p
+                                        className="
+                                            text-xs
+                                            text-green-600
+                                            font-semibold
+                                        "
+                                    >
+                                        Confirmed seats
+                                    </p>
+
+                                    <p
+                                        className="
+                                            text-xs
+                                            text-gray-500
+                                            mt-1
+                                        "
+                                    >
+                                        {confirmedSeat.length} of{" "}
+                                        {requiredSeats} seats confirmed
+                                    </p>
+
+                                </div>
 
 
-{/* ========================================== */}
-{/* TEMPORARY SELECTED SEAT */}
-{/* ========================================== */}
+                                <div
+                                    className="
+                                        flex
+                                        flex-wrap
+                                        gap-2
+                                    "
+                                >
 
-{selectedSeat && !confirmedSeat && (
-    <div
-        className="
-            mt-5
-            flex
-            flex-col
-            sm:flex-row
-            items-start
-            sm:items-center
-            justify-between
-            gap-3
-            p-4
-            rounded-lg
-            bg-blue-50
-            border
-            border-blue-100
-        "
-    >
-        <div>
-            <p
-                className="
-                    text-xs
-                    text-blue-500
-                "
-            >
-                Selected seat
-            </p>
+                                    {confirmedSeat.map(
+                                        (seat) => (
 
-            <p
-                className="
-                    text-base
-                    font-bold
-                    text-blue-700
-                    mt-0.5
-                "
-            >
-                {selectedSeat}
-            </p>
-        </div>
+                                            <div
+                                                key={seat}
+                                                className="
+                                                    flex
+                                                    items-center
+                                                    gap-2
+                                                    px-3
+                                                    py-2
+                                                    rounded-lg
+                                                    bg-green-600
+                                                    text-white
+                                                "
+                                            >
 
-        <button
-            type="button"
-            onClick={handleConfirmSeat}
-            className="
-                w-full
-                sm:w-auto
-                px-5
-                h-10
-                bg-blue-600
-                hover:bg-blue-700
-                text-white
-                rounded-lg
-                text-sm
-                font-semibold
-                transition
-            "
-        >
-            Confirm Seat
-        </button>
-    </div>
-)}
+                                                <span
+                                                    className="
+                                                        font-bold
+                                                        text-sm
+                                                    "
+                                                >
+                                                    {seat}
+                                                </span>
 
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        handleRemoveConfirmedSeat(
+                                                            seat
+                                                        )
+                                                    }
+                                                    className="
+                                                        w-6
+                                                        h-6
+                                                        rounded-full
+                                                        bg-white/20
+                                                        hover:bg-white/30
+                                                        active:bg-white/40
+                                                        text-white
+                                                        text-xs
+                                                    "
+                                                >
+                                                    ×
+                                                </button>
+
+                                            </div>
+
+                                        )
+                                    )}
+
+                                </div>
+
+                            </div>
+                        )}
+
+
+                        {/* ========================================== */}
+                        {/* TEMPORARY SELECTED SEAT */}
+                        {/* ========================================== */}
+
+                        {selectedSeat.length > 0 && (
+
+                            <div
+                                className="
+                                    mt-5
+                                    p-3
+                                    sm:p-4
+                                    rounded-lg
+                                    bg-blue-50
+                                    border
+                                    border-blue-100
+                                "
+                            >
+
+                                <div
+                                    className="
+                                        flex
+                                        flex-col
+                                        gap-3
+                                    "
+                                >
+
+                                    <div>
+
+                                        <p
+                                            className="
+                                                text-xs
+                                                text-blue-500
+                                            "
+                                        >
+                                            Selected seats
+                                        </p>
+
+                                        <p
+                                            className="
+                                                text-base
+                                                font-bold
+                                                text-blue-700
+                                                mt-1
+                                                break-words
+                                            "
+                                        >
+                                            {selectedSeat.join(", ")}
+                                        </p>
+
+                                        <p
+                                            className="
+                                                text-xs
+                                                text-gray-500
+                                                mt-1
+                                            "
+                                        >
+                                            {selectedSeat.length} of{" "}
+                                            {requiredSeats} seats selected
+                                        </p>
+
+                                    </div>
+
+
+                                    <button
+                                        type="button"
+                                        disabled={
+                                            selectedSeat.length !==
+                                            requiredSeats
+                                        }
+                                        onClick={handleConfirmSeat}
+                                        className={`
+                                            w-full
+                                            sm:w-auto
+                                            sm:self-end
+                                            px-5
+                                            min-h-10
+                                            rounded-lg
+                                            text-sm
+                                            font-semibold
+                                            transition
+
+                                            ${
+                                                selectedSeat.length ===
+                                                requiredSeats
+                                                    ? `
+                                                        bg-blue-600
+                                                        hover:bg-blue-700
+                                                        active:bg-blue-800
+                                                        text-white
+                                                    `
+                                                    : `
+                                                        bg-gray-300
+                                                        text-gray-500
+                                                        cursor-not-allowed
+                                                    `
+                                            }
+                                        `}
+                                    >
+                                        Confirm{" "}
+                                        {selectedSeat.length} Seats
+                                    </button>
+
+                                </div>
+
+                            </div>
+
+                        )}
 
                     </div>
 
                 </div>
             )}
+
+        </div>
+    );
+};
+
+
+// ==========================================
+// LEGEND ITEM COMPONENT
+// ==========================================
+
+const LegendItem = ({
+    className,
+    label,
+}) => {
+
+    return (
+        <div
+            className="
+                flex
+                items-center
+                gap-1.5
+            "
+        >
+
+            <span
+                className={`
+                    w-4
+                    h-4
+                    rounded
+                    shrink-0
+                    ${className}
+                `}
+            />
+
+            <span>{label}</span>
 
         </div>
     );
@@ -1676,6 +1920,7 @@ const DetailItem = ({
                 bg-white
                 border
                 border-gray-100
+                min-w-0
             "
         >
 
@@ -1695,7 +1940,8 @@ const DetailItem = ({
                     text-sm
                     sm:text-base
                     font-semibold
-                    wrap-break-word
+                    break-words
+                    overflow-wrap-anywhere
 
                     ${
                         green

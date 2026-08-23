@@ -15,7 +15,7 @@ import { FaPlaneDeparture, FaPlaneArrival } from "react-icons/fa";
 import { Airports } from "../data/Airport";
 import toast from "react-hot-toast";
 import { useDispatch } from "react-redux";
-import { flightSearch } from "../slice/flightSlice";
+import { flightSearch } from "../slice/FlightSlice";
 
 const LandingPage = () => {
   const dispatch = useDispatch();

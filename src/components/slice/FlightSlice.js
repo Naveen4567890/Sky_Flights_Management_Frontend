@@ -246,15 +246,19 @@ const flightSlice = createSlice({
 
             .addCase(
                 flightSearch.pending,
-                (state) => {
+                (state,action) => {
 
                     state.loading = true;
 
                     state.error = null;
 
-                    state.selectedOnwardFlight = null;
+                    state.searchParams = action.meta.arg;
 
+                    state.selectedOnwardFlight = null;
                     state.selectedReturnFlight = null;
+
+                    state.confirmSeat = {};
+                    state.seatUpdates = {};
                 }
             )
 
@@ -281,10 +285,13 @@ const flightSlice = createSlice({
                     state.returnFlights =
                         returnFlights || [];
 
+                    state.searchParams =  action.meta.arg;
 
                     state.selectedOnwardFlight = null;
-
                     state.selectedReturnFlight = null;
+
+                    state.confirmSeat = {};
+                    state.seatUpdates = {};
                 }
             )
 

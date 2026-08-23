@@ -21,6 +21,7 @@ const FlightResults = () => {
     selectedOnwardFlight,
     selectedReturnFlight,
     confirmSeat,
+    searchParams
   } = useSelector((state) => state.flight);
 
   const [sortBy, setSortBy] = useState("default");
@@ -30,12 +31,23 @@ const FlightResults = () => {
   // ==========================================
 
   const onwardConfirmedSeat = selectedOnwardFlight
-    ? confirmSeat?.[selectedOnwardFlight.id] || null
-    : null;
+    ? confirmSeat?.[selectedOnwardFlight.id] || []
+    : [];
 
   const returnConfirmedSeat = selectedReturnFlight
-    ? confirmSeat?.[selectedReturnFlight.id] || null
-    : null;
+    ? confirmSeat?.[selectedReturnFlight.id] || []
+    : [];
+
+    // ==========================================
+// REQUIRED SEAT COUNT
+// ==========================================
+
+const travelers = searchParams?.travelers || {};
+
+const requiredSeats =
+    Number(travelers.ADULT || 0) +
+    Number(travelers.CHILD || 0) +
+    Number(travelers.INFANT || 0);
 
   // ==========================================
   // CONVERT DURATION TO MINUTES
@@ -219,17 +231,23 @@ const FlightResults = () => {
       return;
     }
 
-    // ------------------------------------------
-    // Departure seat must be confirmed
-    // ------------------------------------------
+    
+    // ======================================
+    // Validate departure seats
+    // ======================================
 
-    if (!onwardConfirmedSeat) {
-      toast.error(
-        "Please select and confirm a seat for the departure flight"
-      );
+    if (
+        onwardConfirmedSeat.length <
+        requiredSeats
+    ) {
 
-      return;
+        toast.error(
+            `Please select ${requiredSeats} seats for ${requiredSeats} travellers on the departure flight`
+        );
+
+        return;
     }
+
 
     // ------------------------------------------
     // Return flight must be selected
@@ -243,20 +261,22 @@ const FlightResults = () => {
       return;
     }
 
-    // ------------------------------------------
-    // Return seat must be confirmed
-    // ------------------------------------------
+     // ======================================
+    // Validate return seats
+    // ======================================
 
     if (
-      returnFlights.length > 0 &&
-      selectedReturnFlight &&
-      !returnConfirmedSeat
+        returnFlights.length > 0 &&
+        selectedReturnFlight &&
+        returnConfirmedSeat.length <
+        requiredSeats
     ) {
-      toast.error(
-        "Please select and confirm a seat for the return flight"
-      );
 
-      return;
+        toast.error(
+            `Please select ${requiredSeats} seats for ${requiredSeats} travellers on the return flight`
+        );
+
+        return;
     }
 
     // ------------------------------------------
