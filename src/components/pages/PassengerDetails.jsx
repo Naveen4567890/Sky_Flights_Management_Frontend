@@ -8,8 +8,9 @@ import toast from "react-hot-toast";
 import PassengerForm from "./PassengerForm";
 
 const PassengerDetails = () => {
+
   const dispatch = useDispatch();
-  const navigate = useNavigate();
+  const navigate = useNavigate();  
 
   const [emailVerified, setEmailVerified] = useState({});
 
@@ -18,6 +19,7 @@ const PassengerDetails = () => {
     selectedOnwardFlight,
     selectedReturnFlight,
     confirmSeat,
+    traveller
   } = useSelector((state) => state.flight);
 
   const {
@@ -38,7 +40,7 @@ const PassengerDetails = () => {
   // INITIAL PASSENGERS
   // ==========================================
 
-  const createInitialPassenger = () => ({
+  const createInitialPassenger = (type) => ({
     firstName: "",
     lastName: "",
     email: "",
@@ -51,16 +53,101 @@ const PassengerDetails = () => {
 
     // Cabin
     cabin: selectedOnwardFlight?.cabin || "ECONOMY",
+
+     type,
   });
 
-  const [passengers, setPassengersState] = useState(
-    storedPassengers.length
-      ? storedPassengers
-      : Array.from(
-          { length: passengerCount },
-          createInitialPassenger
-        )
-  );
+  const createPassengersFromTraveller = () => {
+  const adults = Number(traveller?.adult || traveller?.ADULT || 0);
+  const children = Number(traveller?.child || traveller?.CHILD || 0);
+  const infants = Number(traveller?.infant || traveller?.INFANT || 0);
+
+  return [
+    ...Array.from(
+      { length: adults },
+      () => createInitialPassenger("ADULT")
+    ),
+
+    ...Array.from(
+      { length: children },
+      () => createInitialPassenger("CHILD")
+    ),
+
+    ...Array.from(
+      { length: infants },
+      () => createInitialPassenger("INFANT")
+    ),
+  ];
+};
+
+const [passengers, setPassengersState] = useState(
+  storedPassengers.length
+    ? storedPassengers
+    : createPassengersFromTraveller()
+);
+
+const calculateAge = (dateOfBirth) => {
+  const today = new Date();
+  const dob = new Date(dateOfBirth);
+
+  let age = today.getFullYear() - dob.getFullYear();
+
+  const monthDifference = today.getMonth() - dob.getMonth();
+
+  if (
+    monthDifference < 0 ||
+    (monthDifference === 0 &&
+      today.getDate() < dob.getDate())
+  ) {
+    age--;
+  }
+
+  return age;
+};
+
+const validatePassengerAge = (passenger, index) => {
+  const age = calculateAge(passenger.dateOfBirth);
+
+  if (age < 0) {
+    toast.error(
+      `Passenger ${index + 1}: Date of birth cannot be in the future`
+    );
+
+    return false;
+  }
+
+  if (passenger.type === "ADULT") {
+    if (age < 12) {
+      toast.error(
+        `Passenger ${index + 1} is an Adult. Adult must be 12 years or older.`
+      );
+
+      return false;
+    }
+  }
+
+  if (passenger.type === "CHILD") {
+    if (age < 2 || age >= 12) {
+      toast.error(
+        `Passenger ${index + 1} is a Child. Child age must be between 2 and 11 years.`
+      );
+
+      return false;
+    }
+  }
+
+  if (passenger.type === "INFANT") {
+    if (age >= 2) {
+      toast.error(
+        `Passenger ${index + 1} is an Infant. Infant must be under 2 years old.`
+      );
+
+      return false;
+    }
+  }
+
+  return true;
+};
 
   // ==========================================
   // HANDLE PASSENGER CHANGE
@@ -112,6 +199,11 @@ const PassengerDetails = () => {
 
         return;
       }
+
+       // DOB / age validation
+      if (!validatePassengerAge(passenger, i)) {
+        return;
+  }
     }
 
     // ========================================

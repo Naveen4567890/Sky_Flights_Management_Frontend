@@ -144,7 +144,12 @@ const LandingPage = () => {
       totalTravelers,
     };
 
+    console.log(payload);
+
+    
+
     try {
+     
       await dispatch(flightSearch(payload)).unwrap();
 
       navigate("/flights");

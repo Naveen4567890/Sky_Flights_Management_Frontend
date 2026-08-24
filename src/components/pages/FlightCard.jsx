@@ -419,15 +419,14 @@ const FlightCard = ({
                 duration-200
                 overflow-hidden
 
-                ${
-                    selected
-                        ? `
+                ${selected
+                    ? `
                             border-blue-500
                             ring-2
                             ring-blue-100
                             shadow-lg
                         `
-                        : `
+                    : `
                             border-gray-200
                             hover:border-blue-300
                             hover:shadow-md
@@ -756,7 +755,7 @@ const FlightCard = ({
                                 rounded-md
                                 text-sm
                                 font-semibold
-                                break-words
+                                wrap-break-word
                             "
                         >
                             {confirmedSeat.length > 0
@@ -885,15 +884,14 @@ const FlightCard = ({
                             duration-200
                             px-3
 
-                            ${
-                                selected
-                                    ? `
+                            ${selected
+                                ? `
                                         bg-red-600
                                         hover:bg-red-700
                                         active:bg-red-800
                                         text-white
                                     `
-                                    : `
+                                : `
                                         bg-blue-600
                                         hover:bg-blue-700
                                         active:bg-blue-800
@@ -1244,18 +1242,18 @@ const FlightCard = ({
                         {(confirmedSeat.length > 0 ||
                             selectedSeat.length > 0) && (
 
-                            <div
-                                className="
+                                <div
+                                    className="
                                     mb-5
                                     flex
                                     flex-col
                                     gap-2
                                 "
-                            >
+                                >
 
-                                {confirmedSeat.length > 0 && (
-                                    <div
-                                        className="
+                                    {confirmedSeat.length > 0 && (
+                                        <div
+                                            className="
                                             flex
                                             flex-wrap
                                             items-center
@@ -1266,36 +1264,36 @@ const FlightCard = ({
                                             border
                                             border-green-100
                                         "
-                                    >
+                                        >
 
-                                        <span
-                                            className="
+                                            <span
+                                                className="
                                                 text-xs
                                                 text-green-700
                                                 font-semibold
                                             "
-                                        >
-                                            Confirmed:
-                                        </span>
+                                            >
+                                                Confirmed:
+                                            </span>
 
-                                        <span
-                                            className="
+                                            <span
+                                                className="
                                                 text-sm
                                                 font-bold
                                                 text-green-700
-                                                break-words
+                                                wrap-break-word
                                             "
-                                        >
-                                            {confirmedSeat.join(", ")}
-                                        </span>
+                                            >
+                                                {confirmedSeat.join(", ")}
+                                            </span>
 
-                                    </div>
-                                )}
+                                        </div>
+                                    )}
 
 
-                                {selectedSeat.length > 0 && (
-                                    <div
-                                        className="
+                                    {selectedSeat.length > 0 && (
+                                        <div
+                                            className="
                                             flex
                                             flex-wrap
                                             items-center
@@ -1306,34 +1304,34 @@ const FlightCard = ({
                                             border
                                             border-blue-100
                                         "
-                                    >
+                                        >
 
-                                        <span
-                                            className="
+                                            <span
+                                                className="
                                                 text-xs
                                                 text-blue-700
                                                 font-semibold
                                             "
-                                        >
-                                            Selected:
-                                        </span>
+                                            >
+                                                Selected:
+                                            </span>
 
-                                        <span
-                                            className="
+                                            <span
+                                                className="
                                                 text-sm
                                                 font-bold
                                                 text-blue-700
-                                                break-words
+                                               wrap-break-word
                                             "
-                                        >
-                                            {selectedSeat.join(", ")}
-                                        </span>
+                                            >
+                                                {selectedSeat.join(", ")}
+                                            </span>
 
-                                    </div>
-                                )}
+                                        </div>
+                                    )}
 
-                            </div>
-                        )}
+                                </div>
+                            )}
 
 
                         {/* ========================================== */}
@@ -1397,8 +1395,8 @@ const FlightCard = ({
                             <div
                                 className="
                                     w-full
-                                    min-w-[300px]
-                                    sm:min-w-[340px]
+                                    min-w-75
+                                    sm:min-w-85
                                     max-w-md
                                     mx-auto
                                 "
@@ -1514,9 +1512,9 @@ const FlightCard = ({
 
                                                             const occupied =
                                                                 status ===
-                                                                    "BOOKED" ||
+                                                                "BOOKED" ||
                                                                 status ===
-                                                                    "OCCUPIED";
+                                                                "OCCUPIED";
 
 
                                                             const selectedSeatNow =
@@ -1533,7 +1531,7 @@ const FlightCard = ({
 
                                                             const liveLocked =
                                                                 status ===
-                                                                    "SELECTED" &&
+                                                                "SELECTED" &&
                                                                 !selectedSeatNow &&
                                                                 !confirmedSeatNow;
 
@@ -1560,12 +1558,12 @@ const FlightCard = ({
                                                                         confirmedSeatNow
                                                                             ? `Seat ${seat} is confirmed`
                                                                             : occupied
-                                                                            ? `Seat ${seat} is occupied`
-                                                                            : liveLocked
-                                                                            ? `Seat ${seat} is temporarily locked`
-                                                                            : selectedSeat.length >= requiredSeats
-                                                                            ? "Maximum seats selected"
-                                                                            : `Select seat ${seat}`
+                                                                                ? `Seat ${seat} is occupied`
+                                                                                : liveLocked
+                                                                                    ? `Seat ${seat} is temporarily locked`
+                                                                                    : selectedSeat.length >= requiredSeats
+                                                                                        ? "Maximum seats selected"
+                                                                                        : `Select seat ${seat}`
                                                                     }
 
                                                                     className={`
@@ -1580,14 +1578,13 @@ const FlightCard = ({
                                                                         duration-150
                                                                         select-none
 
-                                                                        ${
-                                                                            confirmedSeatNow
-                                                                                ? `
+                                                                        ${confirmedSeatNow
+                                                                            ? `
                                                                                     bg-green-600
                                                                                     text-white
                                                                                     cursor-not-allowed
                                                                                 `
-                                                                                : selectedSeatNow
+                                                                            : selectedSeatNow
                                                                                 ? `
                                                                                     bg-blue-600
                                                                                     text-white
@@ -1595,18 +1592,18 @@ const FlightCard = ({
                                                                                     ring-blue-200
                                                                                 `
                                                                                 : liveLocked
-                                                                                ? `
+                                                                                    ? `
                                                                                     bg-orange-400
                                                                                     text-white
                                                                                     cursor-not-allowed
                                                                                 `
-                                                                                : occupied
-                                                                                ? `
+                                                                                    : occupied
+                                                                                        ? `
                                                                                     bg-gray-300
                                                                                     text-gray-500
                                                                                     cursor-not-allowed
                                                                                 `
-                                                                                : `
+                                                                                        : `
                                                                                     bg-white
                                                                                     border
                                                                                     border-gray-300
@@ -1791,7 +1788,7 @@ const FlightCard = ({
                                                 font-bold
                                                 text-blue-700
                                                 mt-1
-                                                break-words
+                                               wrap-break-word
                                             "
                                         >
                                             {selectedSeat.join(", ")}
@@ -1829,16 +1826,15 @@ const FlightCard = ({
                                             font-semibold
                                             transition
 
-                                            ${
-                                                selectedSeat.length ===
+                                            ${selectedSeat.length ===
                                                 requiredSeats
-                                                    ? `
+                                                ? `
                                                         bg-blue-600
                                                         hover:bg-blue-700
                                                         active:bg-blue-800
                                                         text-white
                                                     `
-                                                    : `
+                                                : `
                                                         bg-gray-300
                                                         text-gray-500
                                                         cursor-not-allowed
@@ -1940,13 +1936,12 @@ const DetailItem = ({
                     text-sm
                     sm:text-base
                     font-semibold
-                    break-words
+                   wrap-break-word
                     overflow-wrap-anywhere
 
-                    ${
-                        green
-                            ? "text-green-600"
-                            : "text-gray-700"
+                    ${green
+                        ? "text-green-600"
+                        : "text-gray-700"
                     }
                 `}
             >

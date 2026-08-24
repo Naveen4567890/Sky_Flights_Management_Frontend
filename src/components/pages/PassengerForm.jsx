@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import EmailVerification from "./EmailVerification";
 
@@ -11,7 +12,69 @@ const PassengerForm = ({
 
   const [emailVerified, setEmailVerified] = useState(false);
 
+  // ==========================================
+  // PASSENGER TYPE LABEL
+  // ==========================================
 
+  const getPassengerTypeLabel = (type) => {
+    switch (type) {
+      case "ADULT":
+        return "Adult";
+
+      case "CHILD":
+        return "Child";
+
+      case "INFANT":
+        return "Infant";
+
+      default:
+        return "Passenger";
+    }
+  };
+
+  // ==========================================
+  // PASSENGER DOB AGE RULE
+  // ==========================================
+
+  const getPassengerAgeRule = (type) => {
+    switch (type) {
+      case "ADULT":
+        return "12 years or older";
+
+      case "CHILD":
+        return "2–11 years";
+
+      case "INFANT":
+        return "Under 2 years";
+
+      default:
+        return "";
+    }
+  };
+
+  // ==========================================
+  // PASSENGER TYPE STYLE
+  // ==========================================
+
+  const getPassengerTypeStyle = (type) => {
+    switch (type) {
+      case "ADULT":
+        return "bg-blue-100 text-blue-700";
+
+      case "CHILD":
+        return "bg-green-100 text-green-700";
+
+      case "INFANT":
+        return "bg-orange-100 text-orange-700";
+
+      default:
+        return "bg-gray-100 text-gray-700";
+    }
+  };
+
+  // ==========================================
+  // HANDLE CHANGE
+  // ==========================================
 
   const handleChange = (e) => {
     const updatedPassenger = {
@@ -19,7 +82,11 @@ const PassengerForm = ({
       [e.target.name]: e.target.value,
     };
 
-    // Email changed → previous verification becomes invalid
+    // ========================================
+    // EMAIL CHANGED
+    // PREVIOUS VERIFICATION BECOMES INVALID
+    // ========================================
+
     if (e.target.name === "email") {
       setEmailVerified(false);
 
@@ -31,6 +98,10 @@ const PassengerForm = ({
     onChange(index, updatedPassenger);
   };
 
+  // ==========================================
+  // EMAIL VERIFIED
+  // ==========================================
+
   const handleEmailVerified = () => {
     setEmailVerified(true);
 
@@ -38,6 +109,23 @@ const PassengerForm = ({
       onEmailVerified(index, true);
     }
   };
+
+  // ==========================================
+  // PASSENGER TYPE
+  // ==========================================
+
+  const passengerType =
+    passenger.type || "ADULT";
+
+  const passengerTypeLabel =
+    getPassengerTypeLabel(passengerType);
+
+  const passengerAgeRule =
+    getPassengerAgeRule(passengerType);
+
+  // ==========================================
+  // RENDER
+  // ==========================================
 
   return (
     <div
@@ -56,29 +144,120 @@ const PassengerForm = ({
           PASSENGER HEADER
       ========================================== */}
 
-      <div className="flex items-center gap-3 mb-6 pb-5 border-b border-gray-100">
-        <div
-          className="
-            w-10 h-10
-            shrink-0
-            rounded-full
-            bg-blue-100
-            flex items-center justify-center
-          "
-        >
-          <span className="text-blue-600 font-bold">
-            {index + 1}
-          </span>
+      <div
+        className="
+          flex
+          flex-col
+          sm:flex-row
+          sm:items-center
+          sm:justify-between
+          gap-4
+          mb-6
+          pb-5
+          border-b
+          border-gray-100
+        "
+      >
+        {/* Left Side */}
+
+        <div className="flex items-center gap-3">
+          {/* Passenger Number */}
+
+          <div
+            className="
+              w-10 h-10
+              shrink-0
+              rounded-full
+              bg-blue-100
+              flex
+              items-center
+              justify-center
+            "
+          >
+            <span className="text-blue-600 font-bold">
+              {index + 1}
+            </span>
+          </div>
+
+          {/* Passenger Information */}
+
+          <div>
+            <div
+              className="
+                flex
+                flex-wrap
+                items-center
+                gap-2
+              "
+            >
+              <h2
+                className="
+                  text-lg
+                  sm:text-xl
+                  font-bold
+                  text-gray-800
+                "
+              >
+                Passenger {index + 1}
+              </h2>
+
+              {/* Passenger Type Badge */}
+
+              <span
+                className={`
+                  px-3
+                  py-1
+                  rounded-full
+                  text-xs
+                  font-semibold
+                  ${getPassengerTypeStyle(
+                    passengerType
+                  )}
+                `}
+              >
+                {passengerTypeLabel}
+              </span>
+            </div>
+
+            {/* DOB Requirement */}
+
+            <p
+              className="
+                text-xs
+                sm:text-sm
+                text-gray-500
+                mt-1
+              "
+            >
+              Date of birth must be{" "}
+              <span
+                className="
+                  font-semibold
+                  text-blue-600
+                "
+              >
+                {passengerAgeRule}
+              </span>
+            </p>
+          </div>
         </div>
 
-        <div>
-          <h2 className="text-lg sm:text-xl font-bold text-gray-800">
-            Passenger {index + 1}
-          </h2>
+        {/* Right Side */}
 
-          <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
-            Enter passenger information
-          </p>
+        <div
+          className="
+            text-xs
+            sm:text-sm
+            text-gray-500
+            bg-gray-50
+            border
+            border-gray-200
+            rounded-lg
+            px-3
+            py-2
+          "
+        >
+          Enter passenger information
         </div>
       </div>
 
@@ -86,8 +265,14 @@ const PassengerForm = ({
           FORM FIELDS
       ========================================== */}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-
+      <div
+        className="
+          grid
+          grid-cols-1
+          md:grid-cols-2
+          gap-5
+        "
+      >
         {/* ==========================================
             FIRST NAME
         ========================================== */}
@@ -95,10 +280,18 @@ const PassengerForm = ({
         <div>
           <label
             htmlFor={`firstName-${index}`}
-            className="block text-sm font-semibold text-gray-700 mb-2"
+            className="
+              block
+              text-sm
+              font-semibold
+              text-gray-700
+              mb-2
+            "
           >
             First Name
-            <span className="text-red-500 ml-1">*</span>
+            <span className="text-red-500 ml-1">
+              *
+            </span>
           </label>
 
           <input
@@ -116,7 +309,8 @@ const PassengerForm = ({
               rounded-xl
               border border-gray-300
               bg-white
-              text-sm sm:text-base
+              text-sm
+              sm:text-base
               text-gray-800
               placeholder-gray-400
               outline-none
@@ -137,10 +331,18 @@ const PassengerForm = ({
         <div>
           <label
             htmlFor={`lastName-${index}`}
-            className="block text-sm font-semibold text-gray-700 mb-2"
+            className="
+              block
+              text-sm
+              font-semibold
+              text-gray-700
+              mb-2
+            "
           >
             Last Name
-            <span className="text-red-500 ml-1">*</span>
+            <span className="text-red-500 ml-1">
+              *
+            </span>
           </label>
 
           <input
@@ -158,7 +360,8 @@ const PassengerForm = ({
               rounded-xl
               border border-gray-300
               bg-white
-              text-sm sm:text-base
+              text-sm
+              sm:text-base
               text-gray-800
               placeholder-gray-400
               outline-none
@@ -179,20 +382,27 @@ const PassengerForm = ({
         <div className="md:col-span-2">
           <label
             htmlFor={`email-${index}`}
-            className="block text-sm font-semibold text-gray-700 mb-2"
+            className="
+              block
+              text-sm
+              font-semibold
+              text-gray-700
+              mb-2
+            "
           >
             Email Address
-            <span className="text-red-500 ml-1">*</span>
+            <span className="text-red-500 ml-1">
+              *
+            </span>
           </label>
-
-          {/* Email + Verify Button */}
 
           <div
             className="
               flex
               flex-col
               sm:flex-row
-              gap-2 sm:gap-3
+              gap-2
+              sm:gap-3
             "
           >
             {/* Email Input */}
@@ -214,7 +424,8 @@ const PassengerForm = ({
                   rounded-xl
                   border
                   bg-white
-                  text-sm sm:text-base
+                  text-sm
+                  sm:text-base
                   text-gray-800
                   placeholder-gray-400
                   outline-none
@@ -231,34 +442,11 @@ const PassengerForm = ({
                   hover:border-gray-400
                 `}
               />
-
-              {/* Verified Icon */}
-
-              {emailVerified && (
-                <div
-                  className="
-                    absolute
-                    right-3
-                    top-1/2
-                    -translate-y-1/2
-                    w-6 h-6
-                    rounded-full
-                    bg-green-100
-                    flex
-                    items-center
-                    justify-center
-                  "
-                >
-                  <span className="text-green-600 text-sm font-bold">
-                    ✓
-                  </span>
-                </div>
-              )}
             </div>
 
-            {/* ==========================================
-                VERIFY EMAIL BUTTON
-            ========================================== */}
+            {/* ======================================
+                VERIFY EMAIL
+            ====================================== */}
 
             {!emailVerified && (
               <div className="w-full sm:w-auto">
@@ -269,7 +457,9 @@ const PassengerForm = ({
               </div>
             )}
 
-            {/* Verified Button */}
+            {/* ======================================
+                VERIFIED BUTTON
+            ====================================== */}
 
             {emailVerified && (
               <button
@@ -283,7 +473,8 @@ const PassengerForm = ({
                   px-5
                   rounded-xl
                   bg-green-100
-                  border border-green-200
+                  border
+                  border-green-200
                   text-green-700
                   font-semibold
                   text-sm
@@ -295,6 +486,7 @@ const PassengerForm = ({
                 "
               >
                 <span>✓</span>
+
                 Verified
               </button>
             )}
@@ -314,15 +506,33 @@ const PassengerForm = ({
                 font-medium
               "
             >
-              <span className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center text-xs">
+              <span
+                className="
+                  w-5 h-5
+                  rounded-full
+                  bg-green-100
+                  flex
+                  items-center
+                  justify-center
+                  text-xs
+                "
+              >
                 ✓
               </span>
 
               Email address verified successfully
             </div>
           ) : (
-            <p className="mt-2 text-xs sm:text-sm text-gray-500">
-              Verify your email before continuing to booking.
+            <p
+              className="
+                mt-2
+                text-xs
+                sm:text-sm
+                text-gray-500
+              "
+            >
+              Verify your email before continuing
+              to booking.
             </p>
           )}
         </div>
@@ -334,10 +544,18 @@ const PassengerForm = ({
         <div>
           <label
             htmlFor={`phone-${index}`}
-            className="block text-sm font-semibold text-gray-700 mb-2"
+            className="
+              block
+              text-sm
+              font-semibold
+              text-gray-700
+              mb-2
+            "
           >
             Phone Number
-            <span className="text-red-500 ml-1">*</span>
+            <span className="text-red-500 ml-1">
+              *
+            </span>
           </label>
 
           <input
@@ -355,7 +573,8 @@ const PassengerForm = ({
               rounded-xl
               border border-gray-300
               bg-white
-              text-sm sm:text-base
+              text-sm
+              sm:text-base
               text-gray-800
               placeholder-gray-400
               outline-none
@@ -376,10 +595,18 @@ const PassengerForm = ({
         <div>
           <label
             htmlFor={`dateOfBirth-${index}`}
-            className="block text-sm font-semibold text-gray-700 mb-2"
+            className="
+              block
+              text-sm
+              font-semibold
+              text-gray-700
+              mb-2
+            "
           >
             Date of Birth
-            <span className="text-red-500 ml-1">*</span>
+            <span className="text-red-500 ml-1">
+              *
+            </span>
           </label>
 
           <input
@@ -397,7 +624,8 @@ const PassengerForm = ({
               rounded-xl
               border border-gray-300
               bg-white
-              text-sm sm:text-base
+              text-sm
+              sm:text-base
               text-gray-800
               outline-none
               transition-all
@@ -408,8 +636,9 @@ const PassengerForm = ({
               hover:border-gray-400
             "
           />
-        </div>
 
+          
+        </div>
       </div>
     </div>
   );

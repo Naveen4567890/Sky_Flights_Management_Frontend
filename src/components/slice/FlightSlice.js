@@ -18,7 +18,8 @@ export const flightSearch = createAsyncThunk(
                 "/flight/search",
                 formData
             );
-
+            console.log(response);
+            
             return response.data;
 
         } catch (error) {
@@ -51,6 +52,13 @@ const initialState = {
     loading: false,
     error: null,
 
+    traveller: {
+    ADULT: 1,
+    CHILD: 0,
+    INFANT: 0,
+  },
+   
+   totalTravelers: 1,
 
     seatUpdates: {},
 };
@@ -114,9 +122,12 @@ const flightSlice = createSlice({
         },
 
 
-        // ======================================
-        // CLEAR SELECTED FLIGHTS
-        // ======================================
+        setTraveller: (state, action) => {
+            state.traveller = action.payload.travelers;
+            state.totalTravelers = action.payload.totalTravelers;
+        },
+    
+
 
         clearSelectedFlights: (state) => {
 
@@ -292,6 +303,14 @@ const flightSlice = createSlice({
 
                     state.confirmSeat = {};
                     state.seatUpdates = {};
+
+                    state.traveller =action.meta.arg.travelers || {
+                        ADULT: 1,
+                        CHILD: 0,
+                        INFANT: 0,
+                    };
+
+                    state.totalTravelers =action.meta.arg.totalTravelers || 1;
                 }
             )
 
@@ -327,7 +346,7 @@ export const {
     confirmFlightSeat,
     removeConfirmedSeat,
     clearConfirmedSeats,
-
+    setTraveller,
     clearFlights,
     updateSeat,
 
