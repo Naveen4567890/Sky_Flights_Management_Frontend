@@ -2,7 +2,11 @@
 
 
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
-import API from "../../api/api";
+import API from "../api/api";
+
+// ==========================================
+// FLIGHT SEARCH API
+// ==========================================
 
 // ==========================================
 // FLIGHT SEARCH API
@@ -14,15 +18,40 @@ export const flightSearch = createAsyncThunk(
     async (formData, thunkAPI) => {
         try {
 
+            // Get token from localStorage
+            const token = localStorage.getItem("token");
+
+            // Check token
+            if (!token) {
+                return thunkAPI.rejectWithValue(
+                    "Please login to search flights"
+                );
+            }
+
+            // Flight search API
             const response = await API.post(
                 "/flight/search",
-                formData
+                formData,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                }
             );
-            console.log(response);
-            
+
             return response.data;
 
         } catch (error) {
+
+            // Token expired / unauthorized
+            if (error.response?.status === 401) {
+
+                localStorage.removeItem("token");
+
+                return thunkAPI.rejectWithValue(
+                    "Session expired. Please login again"
+                );
+            }
 
             return thunkAPI.rejectWithValue(
                 error.response?.data?.message ||

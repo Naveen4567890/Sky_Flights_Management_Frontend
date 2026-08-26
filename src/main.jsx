@@ -3,7 +3,7 @@ import {createRoot} from 'react-dom/client';
 import App from './App';
 import { Toaster } from 'react-hot-toast';
 import { Provider } from 'react-redux';
-import { store } from './components/store/store';
+import { store } from './store/store';
 
 
 window.global = window;

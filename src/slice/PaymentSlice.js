@@ -15,23 +15,53 @@ export const createPaymentOrder =
 
         async (paymentData, thunkAPI) => {
             try {
+
+                // Get JWT token
+                const token =
+                    localStorage.getItem("token");
+
+                // Check token
+                if (!token) {
+                    return thunkAPI.rejectWithValue(
+                        "Please login to continue"
+                    );
+                }
+
                 const response =
                     await API.post(
                         "/payment/create-order",
-                        paymentData
+                        paymentData,
+                        {
+                            headers: {
+                                Authorization:
+                                    `Bearer ${token}`,
+                            },
+                        }
                     );
 
                 return response.data;
 
             } catch (error) {
 
+                // Token expired / unauthorized
+                if (error.response?.status === 401) {
+
+                    localStorage.removeItem("token");
+
+                    return thunkAPI.rejectWithValue(
+                        "Session expired. Please login again"
+                    );
+                }
+
                 return thunkAPI.rejectWithValue(
+                    error.response?.data?.message ||
                     error.response?.data ||
                     "Unable to create payment order"
                 );
             }
         }
     );
+
 
 // ==========================================
 // VERIFY PAYMENT
@@ -44,23 +74,52 @@ export const verifyPayment =
         async (paymentData, thunkAPI) => {
             try {
 
+                // Get JWT token
+                const token =
+                    localStorage.getItem("token");
+
+                // Check token
+                if (!token) {
+                    return thunkAPI.rejectWithValue(
+                        "Please login to continue"
+                    );
+                }
+
                 const response =
                     await API.post(
                         "/payment/verify",
-                        paymentData
+                        paymentData,
+                        {
+                            headers: {
+                                Authorization:
+                                    `Bearer ${token}`,
+                            },
+                        }
                     );
 
                 return response.data;
 
             } catch (error) {
 
+                // Token expired / unauthorized
+                if (error.response?.status === 401) {
+
+                    localStorage.removeItem("token");
+
+                    return thunkAPI.rejectWithValue(
+                        "Session expired. Please login again"
+                    );
+                }
+
                 return thunkAPI.rejectWithValue(
+                    error.response?.data?.message ||
                     error.response?.data ||
                     "Payment verification failed"
                 );
             }
         }
     );
+
 
 // ==========================================
 // INITIAL STATE
@@ -82,6 +141,7 @@ const initialState = {
 
     success: false,
 };
+
 
 // ==========================================
 // SLICE
@@ -204,8 +264,18 @@ const paymentSlice =
         },
     });
 
+
+// ==========================================
+// ACTIONS
+// ==========================================
+
 export const {
     resetPayment,
 } = paymentSlice.actions;
+
+
+// ==========================================
+// REDUCER
+// ==========================================
 
 export default paymentSlice.reducer;

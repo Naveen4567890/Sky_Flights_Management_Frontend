@@ -1,7 +1,6 @@
 import { createBrowserRouter } from "react-router-dom";
 import Register from "../auth/Register";
 import Login from "../auth/Login";
-import Home from "../pages/Home";
 import PrivateRoute from "./PrivateRoute";
 import LandingPage from "../pages/LandingPage";
 import FlightResults from "../pages/FlightResult";
@@ -25,30 +24,25 @@ const route = createBrowserRouter([
       },
       {
         path:"/flights",
-        element:<FlightResults/>
+        element:<PrivateRoute><FlightResults/></PrivateRoute>
       },
       {
         path:"/passengers",
-        element:<PassengerDetails/>
+        element:<PrivateRoute><PassengerDetails/></PrivateRoute>
 
       },
       {
         path:"/booking-review",
-        element:<BookingReview/>
+        element:<PrivateRoute><BookingReview/></PrivateRoute>
       },
       {
         path:"/payment",
-        element:<Payment/>
+        element:<PrivateRoute><Payment/></PrivateRoute>
       },
       {
         path:"/booking-confirmation",
-        element:<BookingConfirmation/>
-      },
-      {  
-        path: "/home",
-        element:<PrivateRoute><Home/></PrivateRoute>
-      },
-      
+        element:<PrivateRoute><BookingConfirmation/></PrivateRoute>
+      },      
     
 ]);
 

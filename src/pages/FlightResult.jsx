@@ -9,7 +9,7 @@ import {
   clearSelectedFlights,
 } from "../slice/FlightSlice";
 
-import FlightCard from "./FlightCard";
+import FlightCard from "../components/FlightCard";
 
 const FlightResults = () => {
   const dispatch = useDispatch();

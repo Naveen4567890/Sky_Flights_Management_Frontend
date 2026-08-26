@@ -94,11 +94,6 @@ export const connectWebSocket = ({
                         const seatUpdate =
                             JSON.parse(message.body);
 
-                        console.log(
-                            "🪑 Seat update:",
-                            seatUpdate
-                        );
-
                         if (onSeatUpdate) {
                             onSeatUpdate(seatUpdate);
                         }
