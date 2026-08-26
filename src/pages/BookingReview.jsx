@@ -11,7 +11,7 @@ import {
 
 import toast from "react-hot-toast";
 
-import BookingSummary from "./BookingSummary";
+import BookingSummary from "../components/BookingSummary";
 
 import {
   setPassengers,
