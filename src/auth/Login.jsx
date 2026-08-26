@@ -4,6 +4,7 @@ import { useDispatch } from "react-redux";
 import { Link, useNavigate } from "react-router-dom";
 import { loginUser } from "../slice/AuthSlice";
 import { FiEye, FiEyeOff } from "react-icons/fi";
+import { flightSearch } from "../slice/FlightSlice";
 
 const Login = () => {
   const [user, setUser] = useState({
@@ -22,34 +23,72 @@ const Login = () => {
     });
   };
 
-  const handleSubmit = (e) => {
+const handleSubmit = async (e) => {
+
     e.preventDefault();
 
     const { email, password } = user;
 
     if (!email || !password) {
-      toast.error("Please fill all the fields");
-      return;
+        toast.error("Please fill all the fields");
+        return;
     }
 
     const payload = new FormData();
+
     payload.append("email", email);
     payload.append("password", password);
 
-    dispatch(loginUser(payload))
-      .unwrap()
-      .then(() => {
+    try {
+
+        const response =
+            await dispatch(
+                loginUser(payload)
+            ).unwrap();
+
         toast.success("Login Successfully");
-        navigate("/home");
-      })
-      .catch((err) => {
-        toast.error(
-          typeof err === "string"
-            ? err
-            : err?.message || "Login failed"
+
+        // Check pending flight search
+        const pendingSearch =
+            localStorage.getItem(
+                "pendingFlightSearch"
+            );
+
+        if (pendingSearch) {
+
+            const searchPayload =
+                JSON.parse(pendingSearch);
+
+            localStorage.removeItem(
+                "pendingFlightSearch"
+            );
+
+            await dispatch(
+                flightSearch(searchPayload)
+            ).unwrap();
+
+            navigate("/flights");
+
+            return;
+        }
+
+        navigate("/");
+
+    } catch (err) {
+
+        console.error(
+            "Login Error:",
+            err
         );
-      });
-  };
+
+        toast.error(
+            typeof err === "string"
+                ? err
+                : err?.message ||
+                  "Login failed"
+        );
+    }
+};
 
   return (
     <div

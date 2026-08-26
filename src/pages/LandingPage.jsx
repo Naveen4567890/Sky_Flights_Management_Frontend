@@ -144,9 +144,21 @@ const LandingPage = () => {
       totalTravelers,
     };
 
-    console.log(payload);
 
-    
+    const token = localStorage.getItem("token");
+
+  if (!token) {
+    // Save search data
+    localStorage.setItem(
+      "pendingFlightSearch",
+      JSON.stringify(payload)
+    );
+
+    // Go to login
+    navigate("/login");
+
+    return;
+  }
 
     try {
      

@@ -5,7 +5,7 @@ import { setPassengers } from "../slice/BookingSlice";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 
-import PassengerForm from "./PassengerForm";
+import PassengerForm from "../components/PassengerForm";
 
 const PassengerDetails = () => {
 

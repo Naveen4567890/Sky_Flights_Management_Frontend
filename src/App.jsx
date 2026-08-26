@@ -5,15 +5,15 @@ import { RouterProvider } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import toast from "react-hot-toast";
 
-import route from "./components/router/Router";
-import { clearTokenOnRefresh } from "./components/slice/AuthSlice";
+import route from "./router/Router";
+import { clearTokenOnRefresh } from "./slice/AuthSlice";
 
 import {
     connectWebSocket,
     disconnectWebSocket,
-} from "./components/services/websocket";
+} from "./services/websocket";
 
-import { updateSeat } from "./components/slice/FlightSlice";
+import { updateSeat } from "./slice/FlightSlice";
 
 
 const App = () => {
