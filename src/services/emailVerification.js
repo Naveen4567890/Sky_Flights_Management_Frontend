@@ -3,7 +3,7 @@ import API from "../api/api";
 export const sendEmailOtp = async (email) => {
 
     const response = await API.post(
-        "/email/send-email-otp",
+        "/auth/send-email-otp",
         {
             email
         }
@@ -18,7 +18,7 @@ export const verifyEmailOtp = async (
 ) => {
 
     const response = await API.post(
-        "/email/verify-email-otp",
+        "/auth/verify-email-otp",
         {
             email,
             otp
