@@ -16,7 +16,6 @@ const BookingSummary = ({
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
 
-      {/* Header */}
       <div className="bg-linear-to-r from-blue-600 to-blue-500 px-5 sm:px-6 py-5">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
@@ -37,7 +36,6 @@ const BookingSummary = ({
 
       <div className="p-5 sm:p-6">
 
-        {/* Departure */}
         {onwardFlight && (
           <div className="rounded-xl bg-blue-50 border border-blue-100 p-4 sm:p-5">
 
@@ -59,7 +57,6 @@ const BookingSummary = ({
 
             </div>
 
-            {/* Route */}
             <div className="flex items-center justify-between gap-3">
 
               <div className="min-w-0">
@@ -107,7 +104,7 @@ const BookingSummary = ({
           </div>
         )}
 
-        {/* Return */}
+     
         {returnFlight && (
           <div className="mt-4 rounded-xl bg-green-50 border border-green-100 p-4 sm:p-5">
 
@@ -129,7 +126,7 @@ const BookingSummary = ({
 
             </div>
 
-            {/* Route */}
+           
             <div className="flex items-center justify-between gap-3">
 
               <div className="min-w-0">
@@ -181,7 +178,6 @@ const BookingSummary = ({
           </div>
         )}
 
-        {/* Price Breakdown */}
         <div className="mt-6 border-t border-gray-200 pt-5">
 
           <h3 className="text-base font-bold text-gray-800 mb-4">
@@ -226,7 +222,6 @@ const BookingSummary = ({
 
         </div>
 
-        {/* Total */}
         <div className="mt-5 pt-5 border-t border-gray-200">
 
           <div className="flex items-center justify-between">

@@ -1,34 +1,19 @@
-
-
-
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import API from "../api/api";
-
-// ==========================================
-// FLIGHT SEARCH API
-// ==========================================
-
-// ==========================================
-// FLIGHT SEARCH API
-// ==========================================
 
 export const flightSearch = createAsyncThunk(
     "flight/search",
 
     async (formData, thunkAPI) => {
         try {
-
-            // Get token from localStorage
             const token = localStorage.getItem("token");
 
-            // Check token
             if (!token) {
                 return thunkAPI.rejectWithValue(
                     "Please login to search flights"
                 );
             }
 
-            // Flight search API
             const response = await API.post(
                 "/flight/search",
                 formData,
@@ -42,10 +27,7 @@ export const flightSearch = createAsyncThunk(
             return response.data;
 
         } catch (error) {
-
-            // Token expired / unauthorized
             if (error.response?.status === 401) {
-
                 localStorage.removeItem("token");
 
                 return thunkAPI.rejectWithValue(
@@ -61,13 +43,7 @@ export const flightSearch = createAsyncThunk(
     }
 );
 
-
-// ==========================================
-// INITIAL STATE
-// ==========================================
-
 const initialState = {
-
     onwardFlights: [],
     returnFlights: [],
 
@@ -82,35 +58,23 @@ const initialState = {
     error: null,
 
     traveller: {
-    ADULT: 1,
-    CHILD: 0,
-    INFANT: 0,
-  },
-   
-   totalTravelers: 1,
+        ADULT: 1,
+        CHILD: 0,
+        INFANT: 0,
+    },
+
+    totalTravelers: 1,
 
     seatUpdates: {},
 };
 
-
-// ==========================================
-// SLICE
-// ==========================================
-
 const flightSlice = createSlice({
-
     name: "flight",
 
     initialState,
 
     reducers: {
-
-        // ======================================
-        // SELECT / DESELECT DEPARTURE
-        // ======================================
-
         selectOnwardFlight: (state, action) => {
-
             const flight = action.payload;
 
             if (
@@ -118,22 +82,13 @@ const flightSlice = createSlice({
                 state.selectedOnwardFlight.flightNumber ===
                 flight.flightNumber
             ) {
-
                 state.selectedOnwardFlight = null;
-
             } else {
-
                 state.selectedOnwardFlight = flight;
             }
         },
 
-
-        // ======================================
-        // SELECT / DESELECT RETURN
-        // ======================================
-
         selectReturnFlight: (state, action) => {
-
             const flight = action.payload;
 
             if (
@@ -141,37 +96,23 @@ const flightSlice = createSlice({
                 state.selectedReturnFlight.flightNumber ===
                 flight.flightNumber
             ) {
-
                 state.selectedReturnFlight = null;
-
             } else {
-
                 state.selectedReturnFlight = flight;
             }
         },
-
 
         setTraveller: (state, action) => {
             state.traveller = action.payload.travelers;
             state.totalTravelers = action.payload.totalTravelers;
         },
-    
-
 
         clearSelectedFlights: (state) => {
-
             state.selectedOnwardFlight = null;
             state.selectedReturnFlight = null;
         },
 
-
-        // ======================================
-        // CONFIRM SEAT
-        //
-        // flightId → seatNumber
-        // ======================================
-
-       confirmFlightSeat: (state, action) => {
+        confirmFlightSeat: (state, action) => {
             const {
                 flightId,
                 seatNumber,
@@ -181,18 +122,12 @@ const flightSlice = createSlice({
                 state.confirmSeat[flightId] = [];
             }
 
-            // Don't add duplicate seats
             if (
                 !state.confirmSeat[flightId].includes(seatNumber)
             ) {
                 state.confirmSeat[flightId].push(seatNumber);
             }
         },
-
-
-        // ======================================
-        // REMOVE CONFIRMED SEAT
-        // ======================================
 
         removeConfirmedSeat: (state, action) => {
             const {
@@ -206,7 +141,7 @@ const flightSlice = createSlice({
 
             state.confirmSeat[flightId] =
                 state.confirmSeat[flightId].filter(
-                (seat) => seat !== seatNumber
+                    (seat) => seat !== seatNumber
                 );
 
             if (
@@ -216,23 +151,11 @@ const flightSlice = createSlice({
             }
         },
 
-
-        // ======================================
-        // CLEAR ALL CONFIRMED SEATS
-        // ======================================
-
         clearConfirmedSeats: (state) => {
-
             state.confirmSeat = {};
         },
 
-
-        // ======================================
-        // UPDATE LIVE SEAT STATUS
-        // ======================================
-
         updateSeat: (state, action) => {
-
             const {
                 flightId,
                 seatNumber,
@@ -240,21 +163,13 @@ const flightSlice = createSlice({
             } = action.payload;
 
             if (!state.seatUpdates[flightId]) {
-
                 state.seatUpdates[flightId] = {};
             }
 
-            state.seatUpdates[flightId][seatNumber] =
-                status;
+            state.seatUpdates[flightId][seatNumber] = status;
         },
 
-
-        // ======================================
-        // CLEAR SEARCH RESULTS
-        // ======================================
-
         clearFlights: (state) => {
-
             state.onwardFlights = [];
             state.returnFlights = [];
 
@@ -271,27 +186,13 @@ const flightSlice = createSlice({
         },
     },
 
-
-    // ==========================================
-    // ASYNC ACTIONS
-    // ==========================================
-
     extraReducers: (builder) => {
-
         builder
-
-            // ==================================
-            // SEARCH PENDING
-            // ==================================
-
             .addCase(
                 flightSearch.pending,
-                (state,action) => {
-
+                (state, action) => {
                     state.loading = true;
-
                     state.error = null;
-
                     state.searchParams = action.meta.arg;
 
                     state.selectedOnwardFlight = null;
@@ -302,15 +203,9 @@ const flightSlice = createSlice({
                 }
             )
 
-
-            // ==================================
-            // SEARCH SUCCESS
-            // ==================================
-
             .addCase(
                 flightSearch.fulfilled,
                 (state, action) => {
-
                     state.loading = false;
 
                     const {
@@ -318,14 +213,14 @@ const flightSlice = createSlice({
                         returnFlights,
                     } = action.payload;
 
-
                     state.onwardFlights =
                         onwardFlights || [];
 
                     state.returnFlights =
                         returnFlights || [];
 
-                    state.searchParams =  action.meta.arg;
+                    state.searchParams =
+                        action.meta.arg;
 
                     state.selectedOnwardFlight = null;
                     state.selectedReturnFlight = null;
@@ -333,25 +228,21 @@ const flightSlice = createSlice({
                     state.confirmSeat = {};
                     state.seatUpdates = {};
 
-                    state.traveller =action.meta.arg.travelers || {
-                        ADULT: 1,
-                        CHILD: 0,
-                        INFANT: 0,
-                    };
+                    state.traveller =
+                        action.meta.arg.travelers || {
+                            ADULT: 1,
+                            CHILD: 0,
+                            INFANT: 0,
+                        };
 
-                    state.totalTravelers =action.meta.arg.totalTravelers || 1;
+                    state.totalTravelers =
+                        action.meta.arg.totalTravelers || 1;
                 }
             )
-
-
-            // ==================================
-            // SEARCH FAILED
-            // ==================================
 
             .addCase(
                 flightSearch.rejected,
                 (state, action) => {
-
                     state.loading = false;
 
                     state.error =
@@ -362,28 +253,16 @@ const flightSlice = createSlice({
     },
 });
 
-
-// ==========================================
-// EXPORT ACTIONS
-// ==========================================
-
 export const {
     selectOnwardFlight,
     selectReturnFlight,
     clearSelectedFlights,
-
     confirmFlightSeat,
     removeConfirmedSeat,
     clearConfirmedSeats,
     setTraveller,
     clearFlights,
     updateSeat,
-
 } = flightSlice.actions;
-
-
-// ==========================================
-// EXPORT REDUCER
-// ==========================================
 
 export default flightSlice.reducer;

@@ -23,16 +23,6 @@ export const loginUser=createAsyncThunk(
         try{
             const response =await API.post("/auth/login",formData);
 
-             const token = response.data.token;
-
-            if (token) {
-                localStorage.setItem(
-                    "token",
-                    token
-                );
-            }
-
-            
             return response.data.data;
         }
         catch (error) {
@@ -52,11 +42,16 @@ const authSlice=createSlice({
         error:null,
     },
     reducers:{
-       clearTokenOnRefresh: (state) => {
-      state.token = null;
-      localStorage.removeItem("token");
+      setToken: (state, action) => {
 
+        state.token = action.payload;
+
+        localStorage.setItem(
+            "token",
+            action.payload
+        );
     },
+  
     logoutUser: (state) => {
       state.user = null;
       state.token = null;
@@ -107,5 +102,5 @@ const authSlice=createSlice({
 })
 
 
-export const { logoutUser,clearTokenOnRefresh } = authSlice.actions;
+export const { logoutUser,setToken} = authSlice.actions;
 export default authSlice.reducer;

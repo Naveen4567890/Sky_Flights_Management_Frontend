@@ -5,22 +5,15 @@ import {
 
 import API from "../api/api";
 
-// ==========================================
-// CREATE PAYMENT ORDER
-// ==========================================
-
 export const createPaymentOrder =
     createAsyncThunk(
         "payment/createOrder",
 
         async (paymentData, thunkAPI) => {
             try {
-
-                // Get JWT token
                 const token =
                     localStorage.getItem("token");
 
-                // Check token
                 if (!token) {
                     return thunkAPI.rejectWithValue(
                         "Please login to continue"
@@ -42,10 +35,7 @@ export const createPaymentOrder =
                 return response.data;
 
             } catch (error) {
-
-                // Token expired / unauthorized
                 if (error.response?.status === 401) {
-
                     localStorage.removeItem("token");
 
                     return thunkAPI.rejectWithValue(
@@ -62,23 +52,15 @@ export const createPaymentOrder =
         }
     );
 
-
-// ==========================================
-// VERIFY PAYMENT
-// ==========================================
-
 export const verifyPayment =
     createAsyncThunk(
         "payment/verify",
 
         async (paymentData, thunkAPI) => {
             try {
-
-                // Get JWT token
                 const token =
                     localStorage.getItem("token");
 
-                // Check token
                 if (!token) {
                     return thunkAPI.rejectWithValue(
                         "Please login to continue"
@@ -100,10 +82,7 @@ export const verifyPayment =
                 return response.data;
 
             } catch (error) {
-
-                // Token expired / unauthorized
                 if (error.response?.status === 401) {
-
                     localStorage.removeItem("token");
 
                     return thunkAPI.rejectWithValue(
@@ -120,74 +99,41 @@ export const verifyPayment =
         }
     );
 
-
-// ==========================================
-// INITIAL STATE
-// ==========================================
-
 const initialState = {
-
     orderId: null,
-
     paymentId: null,
-
     amount: 0,
-
     currency: "INR",
-
     loading: false,
-
     error: null,
-
     success: false,
 };
 
-
-// ==========================================
-// SLICE
-// ==========================================
-
 const paymentSlice =
     createSlice({
-
         name: "payment",
 
         initialState,
 
         reducers: {
-
             resetPayment: (state) => {
-
                 state.orderId = null;
-
                 state.paymentId = null;
-
                 state.amount = 0;
-
                 state.currency = "INR";
-
                 state.loading = false;
-
                 state.error = null;
-
                 state.success = false;
             },
         },
 
         extraReducers: (builder) => {
-
             builder
-
-                // ======================================
-                // CREATE ORDER
-                // ======================================
 
                 .addCase(
                     createPaymentOrder.pending,
                     (state) => {
-
                         state.loading = true;
-
                         state.error = null;
                     }
                 )
@@ -195,7 +141,6 @@ const paymentSlice =
                 .addCase(
                     createPaymentOrder.fulfilled,
                     (state, action) => {
-
                         state.loading = false;
 
                         state.orderId =
@@ -213,7 +158,6 @@ const paymentSlice =
                 .addCase(
                     createPaymentOrder.rejected,
                     (state, action) => {
-
                         state.loading = false;
 
                         state.error =
@@ -221,16 +165,10 @@ const paymentSlice =
                     }
                 )
 
-                // ======================================
-                // VERIFY PAYMENT
-                // ======================================
-
                 .addCase(
                     verifyPayment.pending,
                     (state) => {
-
                         state.loading = true;
-
                         state.error = null;
                     }
                 )
@@ -238,9 +176,7 @@ const paymentSlice =
                 .addCase(
                     verifyPayment.fulfilled,
                     (state, action) => {
-
                         state.loading = false;
-
                         state.success = true;
 
                         state.paymentId =
@@ -252,9 +188,7 @@ const paymentSlice =
                 .addCase(
                     verifyPayment.rejected,
                     (state, action) => {
-
                         state.loading = false;
-
                         state.success = false;
 
                         state.error =
@@ -264,18 +198,8 @@ const paymentSlice =
         },
     });
 
-
-// ==========================================
-// ACTIONS
-// ==========================================
-
 export const {
     resetPayment,
 } = paymentSlice.actions;
-
-
-// ==========================================
-// REDUCER
-// ==========================================
 
 export default paymentSlice.reducer;

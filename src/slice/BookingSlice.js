@@ -1,26 +1,19 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import API from "../api/api";
 
-// ==========================================
-// CREATE BOOKING
-// ==========================================
-
 export const createBooking = createAsyncThunk(
   "booking/create",
 
   async (bookingData, thunkAPI) => {
     try {
-      // Get JWT token
       const token = localStorage.getItem("token");
 
-      // If token doesn't exist
       if (!token) {
         return thunkAPI.rejectWithValue(
           "Please login to continue"
         );
       }
 
-      // Send booking request
       const response = await API.post(
         "/booking/create",
         bookingData,
@@ -32,10 +25,7 @@ export const createBooking = createAsyncThunk(
       );
 
       return response.data;
-
     } catch (error) {
-
-      // Handle unauthorized token
       if (error.response?.status === 401) {
         localStorage.removeItem("token");
 
@@ -52,27 +42,14 @@ export const createBooking = createAsyncThunk(
   }
 );
 
-// ==========================================
-// INITIAL STATE
-// ==========================================
-
 const initialState = {
   passengers: [],
-
   bookingDetails: null,
-
   bookingId: null,
-
   paymentStatus: "idle",
-
   loading: false,
-
   error: null,
 };
-
-// ==========================================
-// BOOKING SLICE
-// ==========================================
 
 const bookingSlice = createSlice({
   name: "booking",
@@ -80,7 +57,6 @@ const bookingSlice = createSlice({
   initialState,
 
   reducers: {
-
     setPassengers: (state, action) => {
       state.passengers = action.payload;
     },
@@ -90,17 +66,12 @@ const bookingSlice = createSlice({
     },
 
     updatePassenger: (state, action) => {
-
-      const {
-        index,
-        passenger,
-      } = action.payload;
+      const { index, passenger } = action.payload;
 
       state.passengers[index] = passenger;
     },
 
     removePassenger: (state, action) => {
-
       state.passengers.splice(
         action.payload,
         1
@@ -108,15 +79,10 @@ const bookingSlice = createSlice({
     },
 
     clearBooking: (state) => {
-
       state.passengers = [];
-
       state.bookingDetails = null;
-
       state.bookingId = null;
-
       state.paymentStatus = "idle";
-
       state.error = null;
     },
 
@@ -125,65 +91,38 @@ const bookingSlice = createSlice({
     },
   },
 
-  // ==========================================
-  // ASYNC ACTIONS
-  // ==========================================
-
   extraReducers: (builder) => {
-
     builder
-
-      // BOOKING REQUEST
       .addCase(
         createBooking.pending,
         (state) => {
-
           state.loading = true;
-
           state.error = null;
-
           state.paymentStatus = "idle";
         }
       )
 
-      // BOOKING SUCCESS
       .addCase(
         createBooking.fulfilled,
         (state, action) => {
-
           state.loading = false;
-
-          state.bookingDetails =
-            action.payload;
-
+          state.bookingDetails = action.payload;
           state.bookingId =
             action.payload.bookingId;
-
-          state.paymentStatus =
-            "success";
+          state.paymentStatus = "success";
         }
       )
 
-      // BOOKING FAILED
       .addCase(
         createBooking.rejected,
         (state, action) => {
-
           state.loading = false;
-
-          state.paymentStatus =
-            "failed";
-
-          state.error =
-            action.payload;
+          state.paymentStatus = "failed";
+          state.error = action.payload;
         }
       );
   },
 });
-
-// ==========================================
-// ACTIONS
-// ==========================================
 
 export const {
   setPassengers,
@@ -193,9 +132,5 @@ export const {
   clearBooking,
   setPaymentStatus,
 } = bookingSlice.actions;
-
-// ==========================================
-// REDUCER
-// ==========================================
 
 export default bookingSlice.reducer;

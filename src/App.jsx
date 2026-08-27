@@ -6,8 +6,6 @@ import { useDispatch } from "react-redux";
 import toast from "react-hot-toast";
 
 import route from "./router/Router";
-import { clearTokenOnRefresh } from "./slice/AuthSlice";
-
 import {
     connectWebSocket,
     disconnectWebSocket,
@@ -22,8 +20,6 @@ const App = () => {
 
 
     useEffect(() => {
-
-        dispatch(clearTokenOnRefresh());
 
         connectWebSocket({
 

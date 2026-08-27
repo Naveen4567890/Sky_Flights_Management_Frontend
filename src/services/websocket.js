@@ -37,11 +37,6 @@ export const connectWebSocket = ({
                         const notification =
                             JSON.parse(message.body);
 
-                        console.log(
-                            "💳 Payment notification:",
-                            notification
-                        );
-
                         if (onNotification) {
                             onNotification(notification);
                         }

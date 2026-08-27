@@ -8,6 +8,7 @@ import PassengerDetails from "../pages/PassengerDetails";
 import BookingReview from "../pages/BookingReview";
 import Payment from "../pages/Payment";
 import BookingConfirmation from "../pages/BookingConfirmation";
+import OAuthSuccess from "../pages/OAuthSuccess"
 
 const route = createBrowserRouter([
       {
@@ -42,8 +43,11 @@ const route = createBrowserRouter([
       {
         path:"/booking-confirmation",
         element:<PrivateRoute><BookingConfirmation/></PrivateRoute>
-      },      
-    
+      }, 
+      {
+         path:"/oauth-success",
+         element:<OAuthSuccess/>
+      },
 ]);
 
 export default route;

@@ -1,6 +1,6 @@
 export class Airports {
   static list = [
-    // Major Indian Airports
+    
     { city: 'Chennai', country: 'India', code: 'MAA', name: 'Chennai International Airport' },
     { city: 'Delhi', country: 'India', code: 'DEL', name: 'Indira Gandhi International Airport' },
     { city: 'Mumbai', country: 'India', code: 'BOM', name: 'Chhatrapati Shivaji Maharaj Airport' },
@@ -24,7 +24,6 @@ export class Airports {
     { city: 'Calicut', country: 'India', code: 'CCJ', name: 'Calicut International Airport' },
     { city: 'Mangalore', country: 'India', code: 'IXE', name: 'Mangaluru International Airport' },
 
-    // Major International Airports
     { city: 'Dubai', country: 'United Arab Emirates', code: 'DXB', name: 'Dubai International Airport' },
     { city: 'Abu Dhabi', country: 'United Arab Emirates', code: 'AUH', name: 'Zayed International Airport' },
     { city: 'Doha', country: 'Qatar', code: 'DOH', name: 'Hamad International Airport' },
